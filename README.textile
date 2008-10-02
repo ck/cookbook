@@ -1,0 +1,16 @@
+h2. Cookbook Application
+
+This application we're creating in this document serves two purposes. 
+First is demonstrates the use of MerbAuth slices in a Merb-based application. Second, it acts as a test harness for updates to the used gems and slices.
+
+h2. Overview
+
+This document describes the steps to create a simple cookbook application using the following, best-of-bread tools:
+
+* Merb
+* DataMapper
+* HAML
+* RSpec
+* MerbAuth
+
+Disclaimer: The main purpose is to show the use of MerbAuth and its slices and not the modeling of an application!
