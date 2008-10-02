@@ -43,20 +43,25 @@ $KCODE = 'UTF8'
 
 # ==== Dependencies
 
-# These are a few, but not all, of the standard merb-more dependencies:
-#
-# dependency "merb-action-args"   # Provides support for querystring arguments to be passed in to controller actions
-# dependency "merb-assets"        # Provides link_to, asset_path, auto_link, image_tag methods (and lots more)
-# dependency "merb-cache"         # Provides your application with caching functions 
-# dependency "merb-haml"          # Adds rake tasks and the haml generators to your merb app
-# dependency "merb-jquery"        # Provides a #jquery method to insert jQuery code in to a content block
-# dependency "merb-mailer"        # Integrates mail support via Merb Mailer
+# dm-more dependencies
+dependency 'dm-timestamps'
+dependency 'dm-types'
+dependency 'dm-serializer'
+dependency 'dm-validations'
 
-# These are a few, but not all, of the merb-plugin dependencies:
-#
-# dependency "merb_helpers"           # Provides the form, date/time, and other helpers
-# dependency "merb_param_protection"  # Lets you have better control over your query string params and param logging
-# dependency "merb_stories"           # Provides rspec helper methods for your application
+# merb-more dependencies
+dependency 'merb-action-args'
+dependency 'merb-assets'
+dependency 'merb-builder'
+dependency 'merb-cache'
+dependency 'merb-haml'
+dependency 'merb-jquery'
+dependency 'merb-mailer'
+dependency 'merb-slices'
+
+# merb-plugins dependencies
+dependency 'merb_helpers'
+dependency 'merb_param_protection'
 
 # Miscellaneous dependencies:
 #
@@ -71,7 +76,7 @@ $KCODE = 'UTF8'
 
 # You can also add in dependencies after your application loads.
 Merb::BootLoader.after_app_loads do
-  # For example, the magic_admin gem uses the app's model classes. This requires that the models be 
+  # For example, the magic_admin gem uses the app's model classes. This requires that the models be
   # loaded already. So, we can put the magic_admin dependency here:
   # dependency "magic_admin"
 end
@@ -138,15 +143,17 @@ Merb::Config.use do |c|
   # Sets up a custom session id key which is used for the session persistence
   # cookie name.  If not specified, defaults to '_session_id'.
   # c[:session_id_key] = '_session_id'
-  
+
   # The session_secret_key is only required for the cookie session store.
   c[:session_secret_key]  = '49348e74c4d5540adf52a6f1d8158052e386f486'
-  
-  # There are various options here, by default Merb comes with 'cookie', 
-  # 'memory', 'memcache' or 'container'.  
-  # You can of course use your favorite ORM instead: 
+
+  # There are various options here, by default Merb comes with 'cookie',
+  # 'memory', 'memcache' or 'container'.
+  # You can of course use your favorite ORM instead:
   # 'datamapper', 'sequel' or 'activerecord'.
   c[:session_store] = 'cookie'
+
+	c[:use_mutex] = false
 end
 
 

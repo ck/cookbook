@@ -1,0 +1,19 @@
+---
+:development: &defaults
+  :adapter: mysql
+  :database: cookbook_development
+  :username: cb_user
+  :password: secret
+  :host: localhost
+  :socket: /var/mysql/mysql.sock
+
+:test:
+  <<: *defaults
+  :database: cookbook_test
+
+:production:
+  <<: *defaults
+  :database: cookbook_production
+
+:rake:
+  <<: *defaults

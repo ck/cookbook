@@ -14,3 +14,88 @@ This document describes the steps to create a simple cookbook application using 
 * MerbAuth
 
 Disclaimer: The main purpose is to show the use of MerbAuth and its slices and not the modeling of an application!
+
+h2. Preparation
+
+First, let us install all necessary gems.
+                                         
+TODO describe the steps.
+
+h2. Steps
+
+h3. Skeleton App
+
+Create the skeleton
+
+@$ merb-gen app cookbook --orm datamapper  --template-engine haml  --testing-framework rspec@
+
+@$ cd cookbook@
+
+
+Next we adjust the dependencies in the @config/init.rb@ file. Comment out listed dependencies and add other ones:
+
+<pre><code>
+	# dm-more dependencies
+	dependency 'dm-timestamps'
+	dependency 'dm-types'
+	dependency 'dm-serializer'
+	dependency 'dm-validations'
+	
+	# merb-more dependencies
+	dependency 'merb-action-args'
+	dependency 'merb-assets'
+	dependency 'merb-builder'
+	dependency 'merb-cache'
+	dependency 'merb-haml'
+	dependency 'merb-jquery'
+	dependency 'merb-mailer'
+	dependency 'merb-slices'
+	
+	# merb-plugins dependencies
+	dependency 'merb_helpers'
+	dependency 'merb_param_protection'
+</code></pre>
+
+In order to define the connection to the database we have two options
+
+# established the database connection in the environment files
+# define the database connection parameters in a separate configuration file
+
+We will use the old fashion method and use the @config/database.yml@ file. Create the file and define the connection parameters (adjust to your environment as needed):
+
+<pre><code>
+	---
+	:development: &defaults
+	  :adapter: mysql
+	  :database: cookbook_development
+	  :username: cb_user
+	  :password: secret
+	  :host: localhost
+	
+	:test:
+	  <<: *defaults
+	  :database: cookbook_test
+	
+	:production:
+	  <<: *defaults
+	  :database: cookbook_production
+	
+	:rake:
+	  <<: *defaults
+</code></pre>
+
+
+Refer to your database manual on create the database.
+
+Since we use thread-safe DataMapper as our ORM we can also turn the mutex off in the @Merb.config@:
+
+<pre><code>
+	Merb::Config.use do |c|
+	
+		...
+	
+		c[:use_mutex] = false
+	end
+</code></pre>
+
+That's it for setup. We have an application that has no models, no controllers, and no views. In sort: that does nothing!
