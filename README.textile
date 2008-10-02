@@ -99,3 +99,55 @@ Since we use thread-safe DataMapper as our ORM we can also turn the mutex off in
 </code></pre>
 
 That's it for setup. We have an application that has no models, no controllers, and no views. In sort: that does nothing!
+
+
+h3. Add Authentication
+
+h4. Add dependencies
+
+Next we add the user model and the proper authentication.
+
+First, let's add the MerbAuth password slice to @config/init.rb@ :
+
+<pre><code>
+	# merb_auth dependencies
+	dependency "merb_auth-core"
+	dependency "merb_auth-more"
+	dependency "merb_auth_password_slice"
+</code></pre>
+
+Now if we run @rake -T slices:merb_auth_password_slice@ we get all kinds of goodies:
+
+<pre><code>
+	rake slices:merb_auth_password_slice:copy_assets          # Copy public assets to host application
+	rake slices:merb_auth_password_slice:freeze               # Freeze MerbAuthPasswordSlice into your app (only merb_auth_password_slice/app)
+	rake slices:merb_auth_password_slice:freeze:app           # Freezes MerbAuthPasswordSlice by copying all files from merb_auth_password_slice/app to you...
+	rake slices:merb_auth_password_slice:freeze:app_with_gem  # Freezes MerbAuthPasswordSlice as a gem and copies over merb_auth_password_slice/app
+	rake slices:merb_auth_password_slice:freeze:gem           # Freezes MerbAuthPasswordSlice by installing the gem into application/gems using merb-fr...
+	rake slices:merb_auth_password_slice:freeze:models        # Freeze all models into your application for easy modification
+	rake slices:merb_auth_password_slice:freeze:unpack        # Freezes MerbAuthPasswordSlice by unpacking all files into your application
+	rake slices:merb_auth_password_slice:freeze:views         # Freeze all views into your application for easy modification
+	rake slices:merb_auth_password_slice:install              # Install MerbAuthPasswordSlice
+	rake slices:merb_auth_password_slice:migrate              # Migrate the database / Migrate the database
+	rake slices:merb_auth_password_slice:patch                # Copy stub files and views to host application
+	rake slices:merb_auth_password_slice:preflight            # Test for any dependencies / Test for any dependencies
+	rake slices:merb_auth_password_slice:setup_directories    # Setup directories
+	rake slices:merb_auth_password_slice:spec                 # Run slice specs within the host application context
+	rake slices:merb_auth_password_slice:spec:controller      # Run all controller specs, run a spec for a specific Controller with CONTROLLER=MyContro...
+	rake slices:merb_auth_password_slice:spec:default         # Run specs
+	rake slices:merb_auth_password_slice:spec:html            # Run all specs and output the result in html
+	rake slices:merb_auth_password_slice:spec:model           # Run all model specs, run a spec for a specific Model with MODEL=MyModel
+	rake slices:merb_auth_password_slice:spec:view            # Run all view specs, run specs for a specific controller (and view) with CONTROLLER=MyCo...
+	rake slices:merb_auth_password_slice:stubs                # Copy stub files to host application</code></pre>
+
+We want to use it, so we run:
+
+<pre><code>
+	$ rake slices:merb_auth_password_slice:install
+</code></pre>
+
+Since we want to manipulate the the view, we need to freeze them with:
+
+<pre><code>
+	$ rake slices:merb_auth_password_slice:freeze:views
+</code></pre>

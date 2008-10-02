@@ -63,6 +63,11 @@ dependency 'merb-slices'
 dependency 'merb_helpers'
 dependency 'merb_param_protection'
 
+# merb_auth dependencies
+dependency "merb_auth-core"
+dependency "merb_auth-more"
+dependency "merb_auth_password_slice"
+
 # Miscellaneous dependencies:
 #
 # Specify more than one dependency at a time with the #dependencies method:
