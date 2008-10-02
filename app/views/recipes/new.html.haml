@@ -1,0 +1,13 @@
+%h1 Recipes controller, new action
+
+%p 
+  Edit this file in 
+  %tt app/views/recipes/new.html.erb
+
+= error_messages_for :recipe
+
+= form_for(@recipe, :action => url(:recipes) ) do |f|
+  %p
+    = submit "Create"
+
+= link_to 'Back', url(:recipes)

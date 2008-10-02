@@ -1,0 +1,16 @@
+%h1
+  Recipes controller, index action
+%p
+  Edit this file in
+  %tt
+    app/views/recipes/index.html.erb
+%table
+  %tr
+  - for recipe in @recipes
+    %tr
+      %td
+        = link_to 'Show', url(:recipe, recipe)
+      %td
+        = link_to 'Edit', url(:edit_recipe,  recipe)
+
+= link_to 'New', url(:new_recipe)
