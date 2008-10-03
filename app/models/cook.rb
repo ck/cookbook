@@ -39,7 +39,7 @@ class Cook
 
   def encrypt_password
     self.salt ||= Digest::SHA1.hexdigest("--#{Time.now.to_s}--#{login}--")
-    self.crypted_password ||= User.encrypt(salt, password)
+    self.crypted_password ||= Cook.encrypt(salt, password)
   end
 
 end

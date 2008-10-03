@@ -1,9 +1,13 @@
-%h1
-  Recipes controller, show action
-%p
-  Edit this file in
-  %tt
-    app/views/recipes/show.html.erb
+%h1 Recipe
+
+%div
+  %p 
+    Title
+    = @recipe.title
+%div
+  %p 
+    Instructions
+    = @recipe.instructions
 
 = link_to 'Edit',  url(:edit_recipe,  @recipe)
 |

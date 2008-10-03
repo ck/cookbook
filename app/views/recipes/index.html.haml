@@ -1,16 +1,19 @@
-%h1
-  Recipes controller, index action
-%p
-  Edit this file in
-  %tt
-    app/views/recipes/index.html.erb
+%h1 Recipes
+
 %table
-  %tr
-  - for recipe in @recipes
+  %thead
     %tr
-      %td
-        = link_to 'Show', url(:recipe, recipe)
-      %td
-        = link_to 'Edit', url(:edit_recipe,  recipe)
+      %th Title
+      %th{:colspan => 2} &nbsp;
+  %tbody
+    %tr
+    - for recipe in @recipes
+      %tr
+        %td
+          = recipe.title
+        %td
+          = link_to 'Show', url(:recipe, recipe)
+        %td
+          = link_to 'Edit', url(:edit_recipe,  recipe)
 
 = link_to 'New', url(:new_recipe)

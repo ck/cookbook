@@ -79,6 +79,9 @@ dependency "merb_auth_password_slice"
 # Specify more than one dependency at a time as well as the version:
 # dependencies "RedCloth" => "> 3.0", "BlueCloth" => "= 1.0.0"
 
+# add 'lib' folder to path 
+Merb.push_path(:lib, File.join(File.dirname(__FILE__), "..", "lib"))
+
 # You can also add in dependencies after your application loads.
 Merb::BootLoader.after_app_loads do
   # For example, the magic_admin gem uses the app's model classes. This requires that the models be

@@ -1,5 +1,8 @@
 class Recipes < Application
+
   # provides :xml, :yaml, :js
+
+  before :ensure_authenticated
 
   def index
     @recipes = Recipe.all
