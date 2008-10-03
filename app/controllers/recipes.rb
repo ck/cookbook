@@ -5,12 +5,12 @@ class Recipes < Application
   before :ensure_authenticated
 
   def index
-    @recipes = Recipe.all
+    @recipes = session.user.recipes
     display @recipes
   end
 
   def show
-    @recipe = Recipe.get(params[:id])
+    @recipe = session.user.recipes.get(params[:id])
     raise NotFound unless @recipe
     display @recipe
   end
@@ -18,18 +18,19 @@ class Recipes < Application
   def new
     only_provides :html
     @recipe = Recipe.new
+    @recipe.cook = session.user
     render
   end
 
   def edit
     only_provides :html
-    @recipe = Recipe.get(params[:id])
+    @recipe = session.user.recipes.get(params[:id])
     raise NotFound unless @recipe
     render
   end
 
   def create
-    @recipe = Recipe.new(params[:recipe])
+    @recipe = session.user.recipes.build(params[:recipe])
     if @recipe.save
       redirect url(:recipe, @recipe)
     else
@@ -38,7 +39,7 @@ class Recipes < Application
   end
 
   def update
-    @recipe = Recipe.get(params[:id])
+    @recipe = session.user.recipes.get(params[:id])
     raise NotFound unless @recipe
     if @recipe.update_attributes(params[:recipe]) || !@recipe.dirty?
       redirect url(:recipe, @recipe)
@@ -48,7 +49,7 @@ class Recipes < Application
   end
 
   def destroy
-    @recipe = Recipe.get(params[:id])
+    @recipe = session.user.recipes.get(params[:id])
     raise NotFound unless @recipe
     if @recipe.destroy
       redirect url(:recipe)
@@ -56,5 +57,5 @@ class Recipes < Application
       raise BadRequest
     end
   end
-
+  
 end # Recipes

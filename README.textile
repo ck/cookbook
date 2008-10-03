@@ -359,3 +359,121 @@ If we now quit the interactive Merb shell and start the Merb server, pointing th
 Entering the just created login and password will then forward us to the recipes listing.
 
 Note: I added a link in the header to logout from the application.
+
+
+h4. Protect Recipes
+
+Right now we allow any recipe to be viewed as long as the the user can login. 
+Ideally we want to protect out secret potato soup recipe from other cooks in the system.
+To do that we need to modify the recipe controller. 
+But first, let us add another cook to the system via the command line
+
+<pre><code>
+	$ merb -i
+	 ~ Loaded DEVELOPMENT Environment...
+	 ~ loading gem 'dm-timestamps' ...
+	...
+	 ~ Activating slice 'MerbAuthPasswordSlice' ...
+	>> bill = Cook.new(:login => 'bill', :email => 'bill@example.com', :password => 'secret', :password_confirmation => 'secret')
+	=> #<Cook id=nil login="bill" email="bill@example.com" crypted_password=nil salt=nil identity_url=nil created_at=nil updated_at=nil>
+	>> bill.save
+	 ~ SELECT `id` FROM `cooks` WHERE (`login` = 'bill') ORDER BY `id` LIMIT 1
+	 ~ SELECT `id` FROM `cooks` WHERE (`email` = 'bill@example.com') ORDER BY `id` LIMIT 1
+	 ~ INSERT INTO `cooks` (`crypted_password`, `created_at`, `salt`, `updated_at`, `login`, `email`) VALUES ('e88d65490e8c3deb83845f0c49f3333f955f3fed', '2008-10-02 21:50:18', '6a2984f72020c4c6e5cd5c19a3e6760b07fe832f', '2008-10-02 21:50:18', 'bill', 'bill@example.com')
+	=> true
+</code></pre>
+
+Now lets create some recipes:
+
+<pre><code>
+	$ merb -i
+	 ~ Loaded DEVELOPMENT Environment...
+	 ~ loading gem 'dm-timestamps' ...
+	...
+	 ~ Activating slice 'MerbAuthPasswordSlice' ...
+	>> joe = Cook.first(:login => "joe")
+	 ~ SELECT `id`, `login`, `email`, `crypted_password`, `salt`, `identity_url`, `created_at`, `updated_at` FROM `cooks` WHERE (`login` = 'joe') ORDER BY `id` LIMIT 1
+	=> #<Cook id=1 login="joe" email="joe@example.com" crypted_password="401518266932b42163c333c973070687b731eeb4" salt="c470ddbaff0032ac297baf842463fbd7f54649f1" identity_url=nil created_at=#<DateTime: 212089759657/86400,-1/6,2299161> updated_at=#<DateTime: 212089759657/86400,-1/6,2299161>>
+	>> joe.recipes.build(:title => "Potato Soup", :instructions => "Add the diced potatoes to chicken broth. Cover, and simmer for 25 minutes.").save
+	 ~ SELECT `id`, `title`, `created_at`, `updated_at`, `cook_id` FROM `recipes` WHERE (`cook_id` IN (1)) ORDER BY `id`
+	 ~ INSERT INTO `recipes` (`instructions`, `created_at`, `cook_id`, `title`, `updated_at`) VALUES ('Add the diced potatoes to chicken broth. Cover, and simmer for 25 minutes.', '2008-10-02 22:08:30', 1, 'Potato Soup', '2008-10-02 22:08:30')
+	=> true
+	>> bill = Cook.first(:login => "bill")
+	 ~ SELECT `id`, `login`, `email`, `crypted_password`, `salt`, `identity_url`, `created_at`, `updated_at` FROM `cooks` WHERE (`login` = 'bill') ORDER BY `id` LIMIT 1
+	=> #<Cook id=2 login="bill" email="bill@example.com" crypted_password="7143d5223fb0f71a46291bff7d4958c0ca8c7674" salt="e1455120494795a08a5214066d1da252112f2bda" identity_url=nil created_at=#<DateTime: 21208975967/8640,-1/6,2299161> updated_at=#<DateTime: 21208975967/8640,-1/6,2299161>>
+	>> bill.recipes.build(:title => "Ham N Cheese Sandwich", :instructions => "Put two slices of American cheese and on slice of ham on two slices of bread.").save
+	 ~ SELECT `id`, `title`, `created_at`, `updated_at`, `cook_id` FROM `recipes` WHERE (`cook_id` IN (2)) ORDER BY `id`
+	 ~ INSERT INTO `recipes` (`instructions`, `created_at`, `cook_id`, `title`, `updated_at`) VALUES ('Put two slices of American cheese and on slice of ham on two slices of bread.', '2008-10-02 22:08:51', 2, 'Ham N Cheese Sandwich', '2008-10-02 22:08:51')
+	=> true
+</code></pre>
+
+Starting and logging into the application as either joe or bill shows both recipes.
+
+First we change the <code>index</code> action in the recipes controller to only list recipes that belong to the cook/user in the session:
+
+<pre><code>
+	class Recipes < Application
+
+	  # provides :xml, :yaml, :js
+
+	  before :ensure_authenticated
+
+		def index
+		  @recipes = session.user.recipes
+		  display @recipes
+		end
+		...
+	end
+</code></pre>
+
+But this still provides access to another cooks recipe if I enter the URL directly, e.g. for "http://localhost:4000/recipes/2":http://localhost:4000/recipes/2 .
+To avoid that simply modify the <code>show</code> action:
+
+<pre><code>
+	class Recipes < Application
+		...
+		def show
+		  @recipe = session.user.recipes.get(params[:id])
+		  raise NotFound unless @recipe
+		  display @recipe
+		end
+		...
+	end
+</code></pre>
+
+We need to adjust the <code>edit</code>, <code>update</code>, and <code>destroy</code> actions in a similar fashion.
+
+That leaves the <code>new</code> and <code>create</code> actions. 
+For the <code>new</code> action we simply add the user from the session:
+
+<pre><code>
+	class Recipes < Application
+		...
+		def new
+		  only_provides :html
+		  @recipe = Recipe.new
+		  @recipe.cook = session.user
+		  render
+		end
+		...
+	end
+</code></pre>
+
+For the <code>create</code> action we use the <code>build</code> method on the <code>user.recipes</code> collection:
+
+<pre><code>
+	class Recipes < Application
+		...
+	  def create
+	    @recipe = session.user.recipes.build(params[:recipe])
+	    if @recipe.save
+	      redirect url(:recipe, @recipe)
+	    else
+	      render :new
+	    end
+	  end
+		...
+	end
+</code></pre>
+
+
