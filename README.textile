@@ -170,18 +170,17 @@ and the recipe resource
 Now we need to add the necessary properties and associations to the cook (user) model
 
 <pre><code>
+	require 'merb_auth-more/mixins/salted_user'
+	
 	class Cook
 
 	  include DataMapper::Resource
-	  include DataMapper::Timestamp
-	  include DataMapper::Serialize
+	  include Authentication::Mixins::SaltedUser
 
 	  # Attributes
 	  property :id,               Serial
 	  property :login,            String
 	  property :email,            String
-	  property :crypted_password, String, :length => 150
-	  property :salt,             String, :length => 150
 	  property :identity_url,     String
 	  property :created_at,       DateTime
 	  property :updated_at,       DateTime
@@ -194,37 +193,34 @@ Now we need to add the necessary properties and associations to the cook (user) 
 	  validates_is_unique :login, :email
 	  validates_format    :email, :as => :email_address
 
-	  attr_accessor :password, :password_confirmation
-	  validates_is_confirmed :password
-
-	  before :save, :encrypt_password
-
-	  def self.encrypt(salt, password = nil)
-	    Digest::SHA1.hexdigest("--#{salt}--#{password}--")
-	  end
-
-	  def self.authenticate(login, password)
-	    u = self.first(:login => login)
-	    return nil unless u
-	    u.crypted_password == encrypt(u.salt, password) ? u : nil
-	  end
-
-	  def encrypt_password
-	    self.salt ||= Digest::SHA1.hexdigest("--#{Time.now.to_s}--#{login}--")
-	    self.crypted_password ||= Cook.encrypt(salt, password)
-	  end
-
 	end
 </code></pre>
 
-and the recipe model
+Mixing in the <code>Authentication::Mixins::SaltedUser</code> module does a couple of things:
+
+* It adds two properties:
+** <code>crypted_password</code> (String)
+** <code>salt</code> (String)
+* The new <code>password</code> property also gets two validations, if we require a password:
+** validation of the presence
+** validation of confirmation
+* It add the following class methods:
+** <code>encrypt</code>, which takes a password and salt, concatenates them with some delimiters, and encrypt the resulting string using SHA1.
+** <code>authenticate</code>, which takes the login and password authenticates the user. It returns the user model if authenticated, otherwise <code>nil</code>.
+* It add the following instance methods:
+** <code>authenticated?</code>, which takes a password a.
+** <code>encrypt</code>, which encrypts the password by calling the <code>encrypt</code> class method with the passed in password and the salt for that specific user (instance).
+** <code>encrypt_password</code>, which calculates the salt if it is a new user and then encrypts the password for that specific user (instance).
+** <code>password_required?</code>, which is used in validations.
+
+As usual, we're more then welcome to override the methods if we desire.
+
+And finally the recipe model
 
 <pre><code>
 	class Recipe
 
 	  include DataMapper::Resource
-	  include DataMapper::Timestamp
-	  include DataMapper::Serialize
 
 	  # Attributes
 	  property :id,           Integer, :serial => true

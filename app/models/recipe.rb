@@ -1,8 +1,6 @@
 class Recipe
 
   include DataMapper::Resource
-  include DataMapper::Timestamp
-  include DataMapper::Serialize
 
   # Attributes
   property :id,           Integer, :serial => true
