@@ -208,7 +208,7 @@ Mixing in the <code>Authentication::Mixins::SaltedUser</code> module does a coup
 ** <code>encrypt</code>, which takes a password and salt, concatenates them with some delimiters, and encrypt the resulting string using SHA1.
 ** <code>authenticate</code>, which takes the login and password authenticates the user. It returns the user model if authenticated, otherwise <code>nil</code>.
 * It add the following instance methods:
-** <code>authenticated?</code>, which takes a password a.
+** <code>authenticated?</code>, which allows system to check if user is authenticated by encrypting the passed in password and comparing it to stored, crypted password.
 ** <code>encrypt</code>, which encrypts the password by calling the <code>encrypt</code> class method with the passed in password and the salt for that specific user (instance).
 ** <code>encrypt_password</code>, which calculates the salt if it is a new user and then encrypts the password for that specific user (instance).
 ** <code>password_required?</code>, which is used in validations.
