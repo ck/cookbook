@@ -47,12 +47,12 @@ Next we adjust the dependencies in the @config/init.rb@ file. Comment out listed
 	dependency 'merb-builder'
 	dependency 'merb-cache'
 	dependency 'merb-haml'
+	dependency 'merb-helpers'
 	dependency 'merb-jquery'
 	dependency 'merb-mailer'
 	dependency 'merb-slices'
 	
 	# merb-plugins dependencies
-	dependency 'merb_helpers'
 	dependency 'merb_param_protection'
 </code></pre>
 
@@ -473,3 +473,122 @@ For the <code>create</code> action we use the <code>build</code> method on the <
 </code></pre>
 
 
+h3. Unit Testing
+
+Before we go any further, we probably should implement some unit test. Actually, we should have done it before writing any code to follow 
+proper "Behavior Driven Development":http://en.wikipedia.org/wiki/Behavior_driven_development , but I guess better late then never ;).
+
+Remember that we decided to use "RSpec":http://rspec.info/ for unit testing when we created out project. There are other good unit testing
+frameworks available for Merb and it should not be to hard to convert the tests.
+
+Ok, lets start with the models and work out way up the stack to the views.
+
+h4. Unit Testing the Models
+
+Since the @Recipe@ model currently does not contain any testable logic, we'll focus on the @Cook@ model.
+First, lets define a helper module to make out life easier later. It contains all attributes to create a valid @Cook@ model
+
+<pre><code>
+	module CookSpecHelper
+	  def cook_attributes(options = {})
+	    {
+	      :login => 'joe',
+	      :email => 'joe@example.com',
+	      :password => 'secret',
+	      :password_confirmation => 'secret'
+	    }.merge(options)
+	  end
+	end
+</code></pre>
+
+To use it, we need to include it to our first spec. At the same time, lets create a new @Cook@ object before
+each (spec) example:
+
+<pre><code>
+	describe Cook do
+
+	  include CookSpecHelper
+
+	  before(:each) do
+	    @cook = Cook.new
+	  end
+
+	end
+</code></pre>
+
+With that in hand, we turn out attention to the validations in the model:
+
+<pre><code>
+	describe Cook do
+	
+		...
+
+	  it "should be invalid without a login" do
+	    @cook.attributes = cook_attributes.except(:login)
+	    @cook.should_not be_valid
+	    @cook.errors.on(:login).should include("Login must not be blank")
+	  end
+
+	  it "should be invalid without an email" do
+	    @cook.attributes = cook_attributes.except(:email)
+	    @cook.should_not be_valid
+	    @cook.errors.on(:email).should include("Email must not be blank")
+	  end
+
+	  it "should be valid with a full set of valid attributes" do
+	    @cook.attributes = cook_attributes
+	    @cook.should be_valid
+	  end
+
+	end
+</code></pre>
+
+Notice how we use our handy @cook_attributes@ method.
+Time to run our newly created specs: 
+
+<pre><code>
+	$ rake spec
+	(in /Users/ck/cookbook)
+	...P
+
+	Pending:
+	Recipe should have specs (Not Yet Implemented)
+
+	Finished in 0.026579 seconds
+
+	4 examples, 0 failures, 1 pending
+</code></pre>
+
+Great all of our three cook specs passed, but we have one pending spec for the recipe as a reminder.
+One more thing we probably should test is the email format validation""
+
+<pre><code>
+	describe Cook do
+	
+		...
+
+		it "should be invalid without a proper email" do
+		  [ "joe", "joe@", "joe example", "@example", "joe@example com" ].each do |email|
+		    @cook.attributes = cook_attributes(:email => email)
+		    @cook.should_not be_valid
+		    @cook.errors.on(:email).should include("Email has an invalid format")
+		  end
+		end
+
+	end
+</code></pre>
+
+and re-run the specs.
+
+<pre><code>
+	$ rake spec
+	(in /Users/ck/cookbook)
+	....P
+
+	Pending:
+	Recipe should have specs (Not Yet Implemented)
+
+	Finished in 0.036376 seconds
+
+	5 examples, 0 failures, 1 pending
+</code></pre>
