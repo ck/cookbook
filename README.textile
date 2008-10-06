@@ -478,7 +478,7 @@ h3. Unit Testing
 Before we go any further, we probably should implement some unit test. Actually, we should have done it before writing any code to follow 
 proper "Behavior Driven Development":http://en.wikipedia.org/wiki/Behavior_driven_development , but I guess better late then never ;).
 
-Remember that we decided to use "RSpec":http://rspec.info/ for unit testing when we created out project. There are other good unit testing
+Remember that we decided to use "RSpec":http://rspec.info/ for unit testing when we created our project. There are other good unit testing
 frameworks available for Merb and it should not be to hard to convert the tests.
 
 Ok, lets start with the models and work out way up the stack to the views.
@@ -486,7 +486,7 @@ Ok, lets start with the models and work out way up the stack to the views.
 h4. Unit Testing the Models
 
 Since the @Recipe@ model currently does not contain any testable logic, we'll focus on the @Cook@ model.
-First, lets define a helper module to make out life easier later. It contains all attributes to create a valid @Cook@ model
+First, lets define a helper module to make our life easier later. It contains all attributes to create a valid @Cook@ model
 
 <pre><code>
 	module CookSpecHelper
@@ -592,3 +592,23 @@ and re-run the specs.
 
 	5 examples, 0 failures, 1 pending
 </code></pre>
+
+h2. Appendix
+
+h3. Running Specs
+
+There are multiple ways to run the specs for a Merb project. I will outline a couple of them and the order I use that I found useful. 
+Pick the ones you like and make sure they fit nicely in your workflow, otherwise you will abandon tests and that is dangerous!
+
+h4. TextMate
+
+If you are TextMate use, you can install the RSpec Bundle (see "here":http://github.com/dchelimsky/rspec-tmbundle/wikis for instructions)
+and use it to run a single example, all examples, or all examples in the folder.
+
+One way to integrate it into your coding workflow is to
+
+# Write the individual example.
+# Run the individual example: Position cursor in example and press CMD-SHIFT-R.
+# If the individual example passed, run all examples in the file: Position cursor in file and press CMD-R.
+# Run all specs: Select 'spec' folder in folder drawer and press CMD-OPT-R.
+# Rinse and repeat.
