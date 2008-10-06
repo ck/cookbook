@@ -55,12 +55,12 @@ dependency 'merb-assets'
 dependency 'merb-builder'
 dependency 'merb-cache'
 dependency 'merb-haml'
+dependency 'merb-helpers'
 dependency 'merb-jquery'
 dependency 'merb-mailer'
 dependency 'merb-slices'
 
 # merb-plugins dependencies
-dependency 'merb_helpers'
 dependency 'merb_param_protection'
 
 # merb_auth dependencies
