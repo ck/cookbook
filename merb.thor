@@ -23,15 +23,40 @@ require 'yaml'
 #
 ##############################################################################
 
+require 'rubygems'
 require 'rubygems/dependency_installer'
 require 'rubygems/uninstaller'
 require 'rubygems/dependency'
 
+module ColorfulMessages
+  
+  # red
+  def error(*messages)
+    puts messages.map { |msg| "\033[1;31m#{msg}\033[0m" }
+  end
+  
+  # yellow
+  def warning(*messages)
+    puts messages.map { |msg| "\033[1;33m#{msg}\033[0m" }
+  end
+  
+  # green
+  def success(*messages)
+    puts messages.map { |msg| "\033[1;32m#{msg}\033[0m" }
+  end
+  
+  alias_method :message, :success
+  
+end
+
 module GemManagement
+  
+  include ColorfulMessages
   
   # Install a gem - looks remotely and local gem cache;
   # won't process rdoc or ri options.
   def install_gem(gem, options = {})
+    refresh = options.delete(:refresh) || []
     from_cache = (options.key?(:cache) && options.delete(:cache))
     if from_cache
       install_gem_from_cache(gem, options)
@@ -42,6 +67,16 @@ module GemManagement
       update_source_index(options[:install_dir]) if options[:install_dir]
 
       installer = Gem::DependencyInstaller.new(options.merge(:user_install => false))
+      
+      # Exclude gems to refresh from index - force (re)install of new version
+      # def installer.source_index; @source_index; end
+      unless refresh.empty?
+        source_index = installer.instance_variable_get(:@source_index)
+        source_index.gems.each do |name, spec| 
+          source_index.gems.delete(name) if refresh.include?(spec.name)
+        end
+      end
+      
       exception = nil
       begin
         installer.install gem, version
@@ -58,10 +93,10 @@ module GemManagement
         exception = e
       end
       if installer.installed_gems.empty? && exception
-        puts "Failed to install gem '#{gem} (#{version})' (#{exception.message})"
+        error "Failed to install gem '#{gem} (#{version})' (#{exception.message})"
       end
       installer.installed_gems.each do |spec|
-        puts "Successfully installed #{spec.full_name}"
+        success "Successfully installed #{spec.full_name}"
       end
       return !installer.installed_gems.empty?
     end
@@ -85,10 +120,10 @@ module GemManagement
       exception = e
     end
     if installer.installed_gems.empty? && exception
-      puts "Failed to install gem '#{gem}' (#{e.message})"
+      error "Failed to install gem '#{gem}' (#{e.message})"
     end
     installer.installed_gems.each do |spec|
-      puts "Successfully installed #{spec.full_name}"
+      success "Successfully installed #{spec.full_name}"
     end
   end
 
@@ -118,44 +153,50 @@ module GemManagement
       if package = Dir[File.join(gem_pkg_dir, "#{gem_name}-*.gem")].last
         FileUtils.cd(File.dirname(package)) do
           install_gem(File.basename(package), options.dup)
-          return
+          return true
         end
       else
         raise Gem::InstallError, "No package found for #{gem_name}"
       end
-    # Handle standard installation through Rake
+    # Handle elaborate installation through Rake
     else
       # Clean and regenerate any subgems for meta gems.
       Dir[File.join(gem_src_dir, '*', 'Rakefile')].each do |rakefile|
-        FileUtils.cd(File.dirname(rakefile)) { system("#{rake} clobber_package; #{rake} package") }
+        FileUtils.cd(File.dirname(rakefile)) do 
+          system("#{rake} clobber_package; #{rake} package")
+        end
       end
 
       # Handle the main gem install.
       if File.exists?(File.join(gem_src_dir, 'Rakefile'))
+        subgems = []
         # Remove any existing packages.
         FileUtils.cd(gem_src_dir) { system("#{rake} clobber_package") }
         # Create the main gem pkg dir if it doesn't exist.
         FileUtils.mkdir_p(gem_pkg_dir) unless File.directory?(gem_pkg_dir)
         # Copy any subgems to the main gem pkg dir.
-        Dir[File.join(gem_src_dir, '**', 'pkg', '*.gem')].each do |subgem_pkg|
+        Dir[File.join(gem_src_dir, '*', 'pkg', '*.gem')].each do |subgem_pkg|
+          if name = File.basename(subgem_pkg, '.gem')[/^(.*?)-([\d\.]+)$/, 1]
+            subgems << name
+          end
           dest = File.join(gem_pkg_dir, File.basename(subgem_pkg))
-          FileUtils.copy_entry(subgem_pkg, dest, false, false, true)
+          FileUtils.copy_entry(subgem_pkg, dest, true, false, true)          
         end
 
         # Finally generate the main package and install it; subgems
         # (dependencies) are local to the main package.
-        FileUtils.cd(gem_src_dir) do
+        FileUtils.cd(gem_src_dir) do         
           system("#{rake} package")
           FileUtils.cd(gem_pkg_dir) do
             if package = Dir[File.join(gem_pkg_dir, "#{gem_name}-*.gem")].last
               # If the (meta) gem has it's own package, install it.
-              install_gem(File.basename(package), options.dup)
+              install_gem(File.basename(package), options.merge(:refresh => subgems))
             else
               # Otherwise install each package seperately.
               Dir["*.gem"].each { |gem| install_gem(gem, options.dup) }
             end
           end
-          return
+          return true
         end
       end
     end
@@ -188,7 +229,7 @@ module GemManagement
           spec = Gem::Specification.load(gemspec_path)
           spec.executables.each do |exec|
             executable = File.join(bin_dir, exec)
-            puts "Writing executable wrapper #{executable}"
+            message "Writing executable wrapper #{executable}"
             File.open(executable, 'w', 0755) do |f|
               f.write(executable_wrapper(spec, exec))
             end
@@ -202,9 +243,9 @@ module GemManagement
 
   def executable_wrapper(spec, bin_file_name)
     <<-TEXT
-#!#{Gem.ruby}
+#!/usr/bin/env ruby
 #
-# This file was generated by Merb's GemManagement.
+# This file was generated by Merb's GemManagement
 #
 # The application '#{spec.name}' is installed as part of a gem, and
 # this file is here to facilitate running it.
@@ -215,7 +256,8 @@ rescue LoadError
   require 'rubygems'
 end
 
-if File.directory?(gems_dir = File.join(Dir.pwd, 'gems'))
+if File.directory?(gems_dir = File.join(Dir.pwd, 'gems')) ||
+   File.directory?(gems_dir = File.join(File.dirname(__FILE__), '..', 'gems'))
   $BUNDLE = true; Gem.clear_paths; Gem.path.unshift(gems_dir)
 end
 
@@ -249,9 +291,14 @@ TEXT
   
 end
 
+
 ##############################################################################
 
 module MerbThorHelper
+
+  include ColorfulMessages
+
+  DO_ADAPTERS = %w[mysql postgres sqlite3]
 
   private
 
@@ -334,6 +381,12 @@ module MerbThorHelper
     FileUtils.mkdir(path) unless File.exists?(path)
   end
   
+  def neutralise_sudo_for(dir)
+    if ENV['SUDO_UID'] && ENV['SUDO_GID']
+      FileUtils.chown_R(ENV['SUDO_UID'], ENV['SUDO_GID'], dir)
+    end
+  end
+  
   def ensure_bin_wrapper_for(*gems)
     Merb.ensure_bin_wrapper_for(gem_dir, bin_dir, *gems)
   end
@@ -359,7 +412,9 @@ class Merb < Thor
       'extlib'        => "git://github.com/sam/extlib.git",
       'dm-core'       => "git://github.com/sam/dm-core.git",
       'dm-more'       => "git://github.com/sam/dm-more.git",
-      'thor'          => "git://github.com/wycats/thor.git" 
+      'do'            => "git://github.com/sam/do.git",
+      'thor'          => "git://github.com/wycats/thor.git",
+      'minigems'      => "git://github.com/fabien/minigems.git"
     }
   end
 
@@ -407,11 +462,11 @@ class Merb < Thor
       end
       none = options[:system].nil? && options[:local].nil?
       if (options[:system] || none) && !partitioned[:system].empty?
-        puts "System dependencies:"
+        message "System dependencies:"
         partitioned[:system].each { |str| puts "- #{str}" }
       end
       if (options[:local] || none) && !partitioned[:local].empty?
-        puts "Local dependencies:"
+        message "Local dependencies:"
         partitioned[:local].each  { |str| puts "- #{str}" }
       end
     end
@@ -435,8 +490,8 @@ class Merb < Thor
         # if options[:binaries] is set this is already taken care of - skip it
         ensure_bin_wrapper_for_core_components unless options[:binaries]
       else
-        puts "No configuration file found at #{config_file}"
-        puts "Please run merb:dependencies:configure first."
+        error "No configuration file found at #{config_file}"
+        error "Please run merb:dependencies:configure first."
       end
     end
     
@@ -456,13 +511,13 @@ class Merb < Thor
       config = YAML.dump(entries)
       puts "#{config}\n"
       if File.exists?(config_file) && !options[:force]
-        puts "File already exists! Use --force to overwrite."
+        error "File already exists! Use --force to overwrite."
       else
         File.open(config_file, 'w') { |f| f.write config }
-        puts "Written #{config_file}:"
+        success "Written #{config_file}:"
       end
     rescue  
-      puts "Failed to write to #{config_file}"  
+      error "Failed to write to #{config_file}"  
     end
     
     protected
@@ -493,7 +548,7 @@ class Merb < Thor
           name, version_req, type = matches.captures
           dependencies << Gem::Dependency.new(name, version_req, type.to_sym)
         else
-          puts "Invalid entry: #{entry}"
+          error "Invalid entry: #{entry}"
         end
       end
       dependencies
@@ -525,18 +580,18 @@ class Merb < Thor
     stable = Stable.new
     stable.options = options
     if stable.core && stable.more
-      puts "Installed extlib, merb-core and merb-more"
+      success "Installed extlib, merb-core and merb-more"
       if options[:adapter] && adapters[options[:adapter]]
         stable.refresh_from_gems(*adapters[options[:adapter]])
-        puts "Installed #{options[:adapter]}"
+        success "Installed #{options[:adapter]}"
       elsif options[:adapter]
-        puts "Please specify one of the following adapters: #{adapters.keys.join(' ')}"
+        error "Please specify one of the following adapters: #{adapters.keys.join(' ')}"
       end
       if options[:orm] && orms[options[:orm]]
         stable.refresh_from_gems(*orms[options[:orm]])
-        puts "Installed #{options[:orm]}"
+        success "Installed #{options[:orm]}"
       elsif options[:orm]
-        puts "Please specify one of the following orms: #{orms.keys.join(' ')}"
+        error "Please specify one of the following orms: #{orms.keys.join(' ')}"
       end
     end
   end
@@ -591,12 +646,33 @@ class Merb < Thor
     def dm_more
       refresh_from_gems 'extlib', 'dm-core', 'dm-more'
     end
-
+    
+    desc 'do [ADAPTER, ...]', 'Install data_objects and optional adapter'
+    method_options "--merb-root" => :optional
+    def do(*adapters)
+      refresh_from_gems 'data_objects'
+      adapters.each do |adapter|
+        if adapter && DO_ADAPTERS.include?(adapter)
+          refresh_from_gems "do_#{adapter}"
+        elsif adapter
+          error "Unknown DO adapter '#{adapter}'"
+        end
+      end
+    end
+    
+    desc 'minigems', 'Install minigems (system-wide)'
+    def minigems
+      if Merb.install_gem('minigems')
+        system("#{Gem.ruby} -S minigem install")
+      end
+    end
+    
     # Pull from RubyForge and install.
     def refresh_from_gems(*components)
+      opts = components.last.is_a?(Hash) ? components.pop : {}
       gems = Gems.new
       gems.options = options
-      components.all? { |name| gems.install_gem(name) }
+      components.all? { |name| gems.install_gem(name, opts) }
     end
 
   end
@@ -654,7 +730,8 @@ class Merb < Thor
                    "--sources"   => :optional,
                    "--install"   => :boolean
     def core
-      refresh_from_source 'thor', 'extlib', 'merb-core'
+      refresh_from_source 'thor'
+      refresh_from_source 'extlib', 'merb-core'
       ensure_bin_wrapper_for('merb-core', 'rake', 'rspec', 'thor')
     end
 
@@ -690,6 +767,24 @@ class Merb < Thor
     def dm_more
       refresh_from_source 'extlib', 'dm-core', 'dm-more'
     end
+    
+    desc 'do [ADAPTER, ...]', 'Install data_objects and optional adapter'
+    method_options "--merb-root" => :optional,
+                   "--sources"   => :optional,
+                   "--install"   => :boolean
+    def do(*adapters)
+      source = Source.new
+      source.options = options
+      source.clone('do')
+      source.install('do/data_objects')
+      adapters.each do |adapter|
+        if adapter && DO_ADAPTERS.include?(adapter)
+          source.install("do/do_#{adapter}")
+        elsif adapter
+          error "Unknown DO adapter '#{adapter}'"
+        end
+      end
+    end
 
     desc 'custom', 'Update all the custom repos from git HEAD'
     method_options "--merb-root" => :optional,
@@ -700,14 +795,40 @@ class Merb < Thor
       refresh_from_source *custom_repos
     end
 
+    desc 'minigems', 'Install minigems from git HEAD (system-wide)'
+    method_options "--merb-root" => :optional,
+                   "--sources"   => :optional
+    def minigems
+      source = Source.new
+      source.options = options
+      source.clone('minigems')
+      if Merb.install_gem_from_src(File.join(source_dir, 'minigems'))
+        system("#{Gem.ruby} -S minigem install")
+      end
+    end
+
     # Pull from git and optionally install the resulting gems.
     def refresh_from_source(*components)
+      opts = components.last.is_a?(Hash) ? components.pop : {}
       source = Source.new
       source.options = options
       components.each do |name|
         source.clone(name)
-        source.install(name) if options[:install]
+        source.install_from_src(name, opts) if options[:install]
       end
+    end
+    
+    desc 'stack', 'Update dm-more from git HEAD'
+    method_options "--sources"   => :optional,
+                   "--install"   => :boolean
+    def stack
+      m_edge = Edge.new
+      m_edge.options = options
+      m_edge.core
+      m_edge.more
+      m_edge.custom
+      m_edge.do('sqlite3')
+      m_edge.dm_more #dm_core gets also installed
     end
 
   end
@@ -745,13 +866,10 @@ class Merb < Thor
     desc 'install GEM_NAME', 'Install a rubygem from (git) source'
     method_options "--merb-root" => :optional
     def install(name)
-      puts "Installing #{name}..."
-      gem_src_dir = File.join(source_dir, name)
-      opts = {}
-      opts[:install_dir] = gem_dir if gem_dir
-      Merb.install_gem_from_src(gem_src_dir, opts)
+      message "Installing #{name}..."
+      install_from_src(name)
     rescue => e
-      puts "Failed to install #{name} (#{e.message})"
+      error "Failed to install #{name} (#{e.message})"
     end
 
     # Clone a git repository into ./src. The repository can be
@@ -781,11 +899,11 @@ class Merb < Thor
           puts "\n#{repository_name} repository exists, updating or branching instead of cloning..."
           FileUtils.cd(local_repo_path) do
 
-            # to avoid conflicts we need to set a remote branch for non official repos
+            # To avoid conflicts we need to set a remote branch for non official repos
             existing_repos  = `git remote -v`.split("\n").map{|branch| branch.split(/\s+/)}
             origin_repo_url = existing_repos.detect{ |r| r.first == "origin" }.last
 
-            # pull from the original repository - no branching needed
+            # Pull from the original repository - no branching needed
             if repository_url == origin_repo_url
               puts "Pulling from #{repository_url}"
               system %{
@@ -793,12 +911,12 @@ class Merb < Thor
                 git checkout master
                 git rebase origin/master
               }
-            # update and switch to a branch for a particular github fork
+            # Update and switch to a branch for a particular github fork
             elsif existing_repos.map{ |r| r.last }.include?(repository_url)
               puts "Switching to remote branch: #{fork_name}"
               `git checkout -b #{fork_name} #{fork_name}/master`
               `git rebase #{fork_name}/master`
-            # create a new remote branch for a particular github fork
+            # Create a new remote branch for a particular github fork
             else
               puts "Add a new remote branch: #{fork_name}"
               `git remote add -f #{fork_name} #{repository_url}`
@@ -811,8 +929,13 @@ class Merb < Thor
             system("git clone --depth 1 #{repository_url} ")
           end
         end
+        
+        # We don't want to have our source directory under sudo permissions
+        # even if clone (with --install) is called with sudo. Maybe there's
+        # a better way, but this works.
+        neutralise_sudo_for(local_repo_path)
       else
-        puts "No valid repository url given"
+        error "No valid repository url given"
       end
     end
 
@@ -832,13 +955,21 @@ class Merb < Thor
         next unless File.directory?(repo) && File.exists?(File.join(repo, '.git'))
         FileUtils.cd(repo) do
           gem_name = File.basename(repo)
-          puts "Refreshing #{gem_name}"
+          message "Refreshing #{gem_name}"
           system %{git fetch}
           branch = `git branch --no-color 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1) /'`[/\* (.+)/, 1]
           system %{git rebase #{branch}}
           install(gem_name) if options[:install]
         end
+        neutralise_sudo_for(repo)
       end
+    end
+    
+    def install_from_src(name, opts = {})
+      gem_src_dir = File.join(source_dir, name)
+      defaults = {}
+      defaults[:install_dir] = gem_dir if gem_dir
+      Merb.install_gem_from_src(gem_src_dir, defaults.merge(opts))
     end
 
   end
@@ -876,11 +1007,11 @@ class Merb < Thor
                    "--cache"     => :boolean,
                    "--binaries"  => :boolean
     def install(name)
-      puts "Installing #{name}..."
+      message "Installing #{name}..."
       install_gem(name, :version => options[:version], :cache => options[:cache])
       ensure_bin_wrapper_for(name) if options[:binaries]
     rescue => e
-      puts "Failed to install #{name} (#{e.message})"
+      error "Failed to install #{name} (#{e.message})"
     end
 
     # Update a gem and its dependencies.
@@ -904,7 +1035,7 @@ class Merb < Thor
                    "--cache"     => :boolean,
                    "--binaries"  => :boolean
     def update(name)
-      puts "Updating #{name}..."
+      message "Updating #{name}..."
       version = nil
       if gem_dir && (gemspec_path = Dir[File.join(gem_dir, 'specifications', "#{name}-*.gemspec")].last)
         gemspec = Gem::Specification.load(gemspec_path)
@@ -913,7 +1044,7 @@ class Merb < Thor
       if install_gem(name, :version => version, :cache => options[:cache])
         ensure_bin_wrapper_for(name) if options[:binaries]
       elsif gemspec
-        puts "current version is: #{gemspec.version}"
+        message "current version is: #{gemspec.version}"
       end
     end
 
@@ -938,10 +1069,10 @@ class Merb < Thor
                    "--merb-root" => :optional,
                    "--all" => :boolean
     def uninstall(name)
-      puts "Uninstalling #{name}..."
+      message "Uninstalling #{name}..."
       uninstall_gem(name, :version => options[:version], :all => options[:all])
     rescue => e
-      puts "Failed to uninstall #{name} (#{e.message})"
+      error "Failed to uninstall #{name} (#{e.message})"
     end
 
     # Completely remove a gem and all its versions - ignores dependencies.
@@ -957,10 +1088,10 @@ class Merb < Thor
     desc 'wipe GEM_NAME', 'Remove a gem completely'
     method_options "--merb-root" => :optional
     def wipe(name)
-      puts "Wiping #{name}..."
+      message "Wiping #{name}..."
       uninstall_gem(name, :all => true, :executables => true)
     rescue => e
-      puts "Failed to wipe #{name} (#{e.message})"
+      error "Failed to wipe #{name} (#{e.message})"
     end
     
     # Refresh all local gems by uninstalling them and subsequently reinstall
@@ -989,7 +1120,7 @@ class Merb < Thor
         # if options[:binaries] is set this is already taken care of - skip it
         ensure_bin_wrapper_for_core_components unless options[:binaries]
       else
-        puts "The refresh task only works with local gems"
+        error "The refresh task only works with local gems"
       end      
     end
     
@@ -1017,13 +1148,8 @@ class Merb < Thor
             end
           end
         end
-        # Regenerate local bin wrappers with the proper Ruby shebang for
-        # the target platform - we're using Gem.ruby not 'env ruby';
-        # be sure to execute thor with the right Ruby binary:
-        # /path/to/exotic/ruby -S thor merb:gems:redeploy
-        ensure_bin_wrapper_for_core_components
       else
-        puts "No application local gems directory found"
+        error "No application local gems directory found"
       end
     end
     
@@ -1076,7 +1202,7 @@ class Merb < Thor
     method_options "--merb-root" => :optional
     def setup
       if $0 =~ /^(\.\/)?bin\/thor$/
-        puts "You cannot run the setup from #{$0} - try #{File.basename($0)} merb:tasks:setup instead"
+        error "You cannot run the setup from #{$0} - try #{File.basename($0)} merb:tasks:setup instead"
         return
       end
       create_if_missing(File.join(working_dir, 'gems'))
@@ -1096,11 +1222,11 @@ class Merb < Thor
       File.open(File.join(working_dir, 'merb.thor'), 'w') do |f|
         f.write(remote_file.read)
       end
-      puts "Installed the latest merb.thor"
+      success "Installed the latest merb.thor"
     rescue OpenURI::HTTPError
-      puts "Error opening #{url}"
+      error "Error opening #{url}"
     rescue => e
-      puts "An error occurred (#{e.message})"
+      error "An error occurred (#{e.message})"
     end
 
   end

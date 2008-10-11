@@ -65,36 +65,37 @@ We will use the old fashion method and use the @config/database.yml@ file. Creat
 
 <pre><code>
 	---
-	:development: &defaults
-	  :adapter: mysql
-	  :database: cookbook_development
-	  :username: cb_user
-	  :password: secret
-	  :host: localhost
-	
-	:test:
+	development: &defaults
+	  adapter: mysql
+	  database: cookbook_development
+	  username: cb_user
+	  password: secret
+	  host: localhost
+
+	test:
 	  <<: *defaults
-	  :database: cookbook_test
-	
-	:production:
+	  database: cookbook_test
+
+	production:
 	  <<: *defaults
-	  :database: cookbook_production
-	
-	:rake:
+	  database: cookbook_production
+
+	rake:
 	  <<: *defaults
 </code></pre>
 
 
 Refer to your database manual on create the database.
 
-Since we use thread-safe DataMapper as our ORM we can also turn the mutex off in the @Merb.config@:
+Since we use thread-safe DataMapper as our ORM, mutex can be off, which it should be. 
+Check the @Merb.config@ in the @init.rb@ file:
 
 <pre><code>
 	Merb::Config.use do |c|
+		c[:use_mutex] = false
 	
 		...
 	
-		c[:use_mutex] = false
 	end
 </code></pre>
 
@@ -107,50 +108,52 @@ h4. Add dependencies
 
 Next we add the user model and the proper authentication.
 
-First, let's add the MerbAuth password slice to @config/init.rb@ :
+First, let's add the MerbAuth gems to @config/init.rb@:
 
 <pre><code>
-	# merb_auth dependencies
-	dependency "merb_auth-core"
-	dependency "merb_auth-more"
-	dependency "merb_auth_password_slice"
+	# merb-more dependencies
+	...
+	dependency "merb-auth-core"
+	dependency "merb-auth-more"
+	dependency "merb-auth-slice-password"
 </code></pre>
 
-Now if we run @rake -T slices:merb_auth_password_slice@ we get all kinds of goodies:
+We put it under the merb-more section, since that's where the gems are maintained since version 1.0.
+Now if we run @rake -T slices:merb-auth-slice-password@ we see all kinds of goodies:
 
 <pre><code>
-	rake slices:merb_auth_password_slice:copy_assets          # Copy public assets to host application
-	rake slices:merb_auth_password_slice:freeze               # Freeze MerbAuthPasswordSlice into your app (only merb_auth_password_slice/app)
-	rake slices:merb_auth_password_slice:freeze:app           # Freezes MerbAuthPasswordSlice by copying all files from merb_auth_password_slice/ap...
-	rake slices:merb_auth_password_slice:freeze:app_with_gem  # Freezes MerbAuthPasswordSlice as a gem and copies over merb_auth_password_slice/app
-	rake slices:merb_auth_password_slice:freeze:gem           # Freezes MerbAuthPasswordSlice by installing the gem into application/gems using mer...
-	rake slices:merb_auth_password_slice:freeze:models        # Freeze all models into your application for easy modification
-	rake slices:merb_auth_password_slice:freeze:unpack        # Freezes MerbAuthPasswordSlice by unpacking all files into your application
-	rake slices:merb_auth_password_slice:freeze:views         # Freeze all views into your application for easy modification
-	rake slices:merb_auth_password_slice:install              # Install MerbAuthPasswordSlice
-	rake slices:merb_auth_password_slice:migrate              # Migrate the database / Migrate the database
-	rake slices:merb_auth_password_slice:patch                # Copy stub files and views to host application
-	rake slices:merb_auth_password_slice:preflight            # Test for any dependencies / Test for any dependencies
-	rake slices:merb_auth_password_slice:setup_directories    # Setup directories
-	rake slices:merb_auth_password_slice:spec                 # Run slice specs within the host application context
-	rake slices:merb_auth_password_slice:spec:controller      # Run all controller specs, run a spec for a specific Controller with CONTROLLER=MyCo...
-	rake slices:merb_auth_password_slice:spec:default         # Run specs
-	rake slices:merb_auth_password_slice:spec:html            # Run all specs and output the result in html
-	rake slices:merb_auth_password_slice:spec:model           # Run all model specs, run a spec for a specific Model with MODEL=MyModel
-	rake slices:merb_auth_password_slice:spec:view            # Run all view specs, run specs for a specific controller (and view) with CONTROLLER=...
-	rake slices:merb_auth_password_slice:stubs                # Copy stub files to host application
+	rake slices:merb-auth-slice-password:copy_assets          # Copy public assets to host application
+	rake slices:merb-auth-slice-password:freeze               # Freeze MerbAuthSlicePassword into your app (only merb-auth-slice-password/app)
+	rake slices:merb-auth-slice-password:freeze:app           # Freezes MerbAuthSlicePassword by copying all files from merb-auth-slice-password/ap...
+	rake slices:merb-auth-slice-password:freeze:app_with_gem  # Freezes MerbAuthSlicePassword as a gem and copies over merb-auth-slice-password/app
+	rake slices:merb-auth-slice-password:freeze:gem           # Freezes MerbAuthSlicePassword by installing the gem into application/gems using mer...
+	rake slices:merb-auth-slice-password:freeze:models        # Freeze all models into your application for easy modification
+	rake slices:merb-auth-slice-password:freeze:unpack        # Freezes MerbAuthSlicePassword by unpacking all files into your application
+	rake slices:merb-auth-slice-password:freeze:views         # Freeze all views into your application for easy modification
+	rake slices:merb-auth-slice-password:install              # Install MerbAuthSlicePassword
+	rake slices:merb-auth-slice-password:migrate              # Migrate the database / Migrate the database
+	rake slices:merb-auth-slice-password:patch                # Copy stub files and views to host application
+	rake slices:merb-auth-slice-password:preflight            # Test for any dependencies / Test for any dependencies
+	rake slices:merb-auth-slice-password:setup_directories    # Setup directories
+	rake slices:merb-auth-slice-password:spec                 # Run slice specs within the host application context
+	rake slices:merb-auth-slice-password:spec:controller      # Run all controller specs, run a spec for a specific Controller with CONTROLLER=MyCo...
+	rake slices:merb-auth-slice-password:spec:default         # Run specs
+	rake slices:merb-auth-slice-password:spec:html            # Run all specs and output the result in html
+	rake slices:merb-auth-slice-password:spec:model           # Run all model specs, run a spec for a specific Model with MODEL=MyModel
+	rake slices:merb-auth-slice-password:spec:view            # Run all view specs, run specs for a specific controller (and view) with CONTROLLER=...
+	rake slices:merb-auth-slice-password:stubs                # Copy stub files to host application
 </code></pre>
 
 We want to use it, so we run:
 
 <pre><code>
-	$ rake slices:merb_auth_password_slice:install
+	$ rake slices:merb-auth-slice-password:install
 </code></pre>
 
 Since we want to manipulate the the view, we need to freeze them with:
 
 <pre><code>
-	$ rake slices:merb_auth_password_slice:freeze:views
+	$ rake slices:merb-auth-slice-password:freeze:views
 </code></pre>
 
 h4. Add models
@@ -170,12 +173,12 @@ and the recipe resource
 Now we need to add the necessary properties and associations to the cook (user) model
 
 <pre><code>
-	require 'merb_auth-more/mixins/salted_user'
+	require 'merb-auth-more/mixins/salted_user'
 	
 	class Cook
 
 	  include DataMapper::Resource
-	  include Authentication::Mixins::SaltedUser
+	  include Merb::Authentication::Mixins::SaltedUser
 
 	  # Attributes
 	  property :id,               Serial
@@ -196,7 +199,7 @@ Now we need to add the necessary properties and associations to the cook (user) 
 	end
 </code></pre>
 
-Mixing in the <code>Authentication::Mixins::SaltedUser</code> module does a couple of things:
+Mixing in the <code>Merb::Authentication::Mixins::SaltedUser</code> module does a couple of things:
 
 * It adds two properties:
 ** <code>crypted_password</code> (String)
@@ -215,6 +218,20 @@ Mixing in the <code>Authentication::Mixins::SaltedUser</code> module does a coup
 
 As usual, we're more then welcome to override the methods if we desire.
 
+The astute reader also noticed that we set user class explicit. If we don't do that, MerbAuth assumes
+our user class is @User@ and creates a @users@ table.
+
+We also need to define our authentication strategies in @lib/authentication/setup.rb@ and make sure
+merb-auth uses our @Cook@ model as the user class. For now we use standard password forms and OpenID:
+
+<pre><code>
+	# ...
+	Merb::Authentication.user_class = Cook
+
+	Merb::Authentication.activate!(:default_password_form)
+	Merb::Authentication.activate!(:default_openid)
+</code></pre>
+
 And finally the recipe model
 
 <pre><code>
@@ -223,7 +240,7 @@ And finally the recipe model
 	  include DataMapper::Resource
 
 	  # Attributes
-	  property :id,           Integer, :serial => true
+	  property :id,           Serial
 	  property :title,        String,  :nullable => false
 	  property :instructions, Text,    :lazy => [:show]
 	  property :created_at,   DateTime
@@ -240,8 +257,10 @@ And finally the recipe model
 Now that we have our models defined, we can run our migrations
 
 <pre><code>
-	$ rake dm:db:automigrate
+	$ rake db:automigrate
 </code></pre>
+
+TODO: Somehow it still creates the @users@ table, even through the user class is set to @Cook@ (checked in interactive Merb).
 
 Next we need to hook up our recipe resource in the router:
 
@@ -279,15 +298,17 @@ To do that we need to do a couple of things.
 First, lets hook up the merb_auth routes
 
 <pre><code>
+	Merb.logger.info("Compiling routes...")
 	Merb::Router.prepare do
-	  # Authentication routes
-	  match("/login", :method => :get).to(:controller => "exceptions", :action => "unauthenticated")
-	  slice(:MerbAuthPasswordSlice, :path_prefix => nil, :name_prefix => nil, :default_routes => false) do
+	  # RESTful routes
+	  resources :recipes
+
+	  # Adds the required routes for merb-auth using the password slice
+	  slice(:merb_auth_slice_password, :name_prefix => nil, :path_prefix => "") do
 	    match("/openid").to(:controller => "sessions", :action => "update").name(:openid)
 	  end
-	
-		...
-	
+
+	  # Change this for your home page to be available at /
 	  match('/').to(:controller => 'recipes', :action =>'index')
 	end
 </code></pre>
@@ -301,37 +322,6 @@ and add before filter to the recipes controller:
 	
 		...
 	end
-</code></pre>
-
-Then add a lib folder and add the @merb_auth_setup.rb@ file:
-
-<pre><code>
-	class Authentication
-
-	  def self.user_class
-	    Cook
-	  end
-
-	  def store_user(cook)
-	    return nil unless cook
-	    cook.id
-	  end
-
-	  def fetch_user(session_info)
-	    Cook.get(session_info)
-	  end
-
-	end # Authentication
-</code></pre>
-
-Note that we tell MerbAuth here that our @user_class@ is @Cook@ and not the default @User@.
-
-
-For it to be available, we need to adjust the Merb path in the @config/init.rb@ file:
-
-<pre><code>
-	# add 'lib' folder to path 
-	Merb.push_path(:lib, File.join(File.dirname(__FILE__), "..", "lib"))
 </code></pre>
 
 As a quick and dirty test, we can create a new user via the interactive Merb shell:
@@ -428,8 +418,8 @@ To avoid that simply modify the <code>show</code> action:
 <pre><code>
 	class Recipes < Application
 		...
-		def show
-		  @recipe = session.user.recipes.get(params[:id])
+		def show(id)
+		  @recipe = session.user.recipes.get(id)
 		  raise NotFound unless @recipe
 		  display @recipe
 		end
@@ -437,6 +427,7 @@ To avoid that simply modify the <code>show</code> action:
 	end
 </code></pre>
 
+And while we're touching the controller, we switch to action arguments (merb-more/merb-action-args).
 We need to adjust the <code>edit</code>, <code>update</code>, and <code>destroy</code> actions in a similar fashion.
 
 That leaves the <code>new</code> and <code>create</code> actions. 
@@ -447,8 +438,7 @@ For the <code>new</code> action we simply add the user from the session:
 		...
 		def new
 		  only_provides :html
-		  @recipe = Recipe.new
-		  @recipe.cook = session.user
+		  @recipe = Recipe.new(:cook => session.user)
 		  render
 		end
 		...
@@ -460,8 +450,8 @@ For the <code>create</code> action we use the <code>build</code> method on the <
 <pre><code>
 	class Recipes < Application
 		...
-	  def create
-	    @recipe = session.user.recipes.build(params[:recipe])
+	  def create(recipe)
+	    @recipe = session.user.recipes.build(recipe)
 	    if @recipe.save
 	      redirect url(:recipe, @recipe)
 	    else

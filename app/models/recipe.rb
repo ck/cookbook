@@ -3,7 +3,7 @@ class Recipe
   include DataMapper::Resource
 
   # Attributes
-  property :id,           Integer, :serial => true
+  property :id,           Serial
   property :title,        String,  :nullable => false
   property :instructions, Text,    :lazy => [:show]
   property :created_at,   DateTime

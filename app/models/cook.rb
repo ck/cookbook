@@ -1,9 +1,9 @@
-require 'merb_auth-more/mixins/salted_user'
+require 'merb-auth-more/mixins/salted_user'
 
 class Cook
 
   include DataMapper::Resource
-  include Authentication::Mixins::SaltedUser
+  include Merb::Authentication::Mixins::SaltedUser
 
   # Attributes
   property :id,               Serial
