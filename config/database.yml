@@ -5,8 +5,8 @@ development: &defaults
   username: cb_user
   password: secret
   host: localhost
-  :socket: /var/mysql/mysql.sock
-  
+  socket: /var/mysql/mysql.sock
+
 test:
   <<: *defaults
   database: cookbook_test

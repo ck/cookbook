@@ -1,32 +1,10 @@
 # Go to http://wiki.merbivore.com/pages/init-rb
+ 
 require 'config/dependencies.rb'
-
-# dm-more dependencies
-dependency 'dm-timestamps'
-dependency 'dm-types'
-dependency 'dm-serializer'
-dependency 'dm-validations'
-
-# merb-more dependencies
-dependency 'merb-action-args'
-dependency 'merb-assets'
-dependency 'merb-builder'
-dependency 'merb-cache'
-dependency 'merb-haml'
-dependency 'merb-helpers'
-dependency 'merb-jquery'
-dependency 'merb-mailer'
-dependency 'merb-slices'
-dependency "merb-auth-core"
-dependency "merb-auth-more"
-dependency "merb-auth-slice-password"
-
-# merb-plugins dependencies
-dependency 'merb_param_protection'
  
 use_orm :datamapper
 use_test :rspec
-use_template_engine :erb
+use_template_engine :haml
  
 Merb::Config.use do |c|
   c[:use_mutex] = false

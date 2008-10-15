@@ -1,50 +1,46 @@
 class Recipes < Application
-
   # provides :xml, :yaml, :js
 
-  before :ensure_authenticated
-
   def index
-	  @recipes = session.user.recipes
+    @recipes = session.user.recipes
     display @recipes
   end
 
   def show(id)
-	  @recipe = session.user.recipes.get(id)
-    raise NotFound unless @recipe
-    display @recipe
+    @recipe = session.user.recipes.get(id)
+	  raise NotFound unless @recipe
+	  display @recipe
   end
 
   def new
     only_provides :html
-    @recipe = Recipe.new(:cook => session.user)
-    render
+	  @recipe = Recipe.new(:cook => session.user)
+    display Recipe
   end
 
   def edit(id)
     only_provides :html
-    @recipe = session.user.recipes.get(id)
+    @recipe = Recipe.get(id)
     raise NotFound unless @recipe
-    render
+    display @recipe
   end
 
   def create(recipe)
-    raise BadRequest, "No params passed to create a new object, check your new action view!" if recipe.nil?
     @recipe = session.user.recipes.build(recipe)
     if @recipe.save
-      redirect url(:recipe, @recipe)
+      redirect resource(@recipe), :message => {:notice => "Recipe was successfully created"}
     else
       render :new
     end
   end
 
-  def update(id, recipe)
+  def update(recipe)
     @recipe = session.user.recipes.get(id)
     raise NotFound unless @recipe
-    if @recipe.update_attributes(recipe) || !@recipe.dirty?
-      redirect url(:recipe, @recipe)
+    if @recipe.update_attributes(recipe)
+       redirect resource(@recipe)
     else
-      raise BadRequest
+      display @recipe, :edit
     end
   end
 
@@ -52,9 +48,9 @@ class Recipes < Application
     @recipe = session.user.recipes.get(id)
     raise NotFound unless @recipe
     if @recipe.destroy
-      redirect url(:recipes)
+      redirect resource(@recipes)
     else
-      raise BadRequest
+      raise InternalServerError
     end
   end
 

@@ -20,8 +20,3 @@
 #
 # Merb::Plugins.config[:"merb-auth"][:login_param]    = :email 
 # Merb::Plugins.config[:"merb-auth"][:password_param] = :my_password_field_name
-
-Merb::Authentication.user_class = Cook
-
-Merb::Authentication.activate!(:default_password_form)
-Merb::Authentication.activate!(:default_openid)

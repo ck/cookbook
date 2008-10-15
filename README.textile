@@ -27,41 +27,42 @@ h3. Skeleton App
 
 Create the skeleton
 
-@$ merb-gen app cookbook --orm datamapper  --template-engine haml  --testing-framework rspec@
+@$ merb-gen app cookbook --template-engine haml@
 
 @$ cd cookbook@
 
 
-Next we adjust the dependencies in the @config/init.rb@ file. Comment out listed dependencies and add other ones:
+Lucky for us, the merb application generator now adds all necessary dependencies in the @config/dependencies.rb@:
 
 <pre><code>
-	# dm-more dependencies
-	dependency 'dm-timestamps'
-	dependency 'dm-types'
-	dependency 'dm-serializer'
-	dependency 'dm-validations'
-	
-	# merb-more dependencies
-	dependency 'merb-action-args'
-	dependency 'merb-assets'
-	dependency 'merb-builder'
-	dependency 'merb-cache'
-	dependency 'merb-haml'
-	dependency 'merb-helpers'
-	dependency 'merb-jquery'
-	dependency 'merb-mailer'
-	dependency 'merb-slices'
-	
-	# merb-plugins dependencies
-	dependency 'merb_param_protection'
+	dependency "merb-action-args", "0.9.9"   # Provides support for querystring arguments to be passed in to controller actions
+	dependency "merb-assets", "0.9.9"        # Provides link_to, asset_path, auto_link, image_tag methods (and lots more)
+	dependency "merb-cache", "0.9.9"         # Provides your application with caching functions 
+	dependency "merb-helpers", "0.9.9"       # Provides the form, date/time, and other helpers
+	dependency "merb-mailer", "0.9.9"        # Integrates mail support via Merb Mailer
+	dependency "merb-slices", "0.9.9"        # Provides a mechanism for letting plugins provide controllers, views, etc. to your app
+	dependency "merb-auth", "0.9.9"          # An authentication slice (Merb's equivalent to Rails' restful authentication)
+	dependency "merb-param-protection", "0.9.9"
+
+	dependency "dm-core", "0.9.6"         # The datamapper ORM
+	dependency "dm-aggregates", "0.9.6"   # Provides your DM models with count, sum, avg, min, max, etc.
+	dependency "dm-migrations", "0.9.6"   # Make incremental changes to your database.
+	dependency "dm-timestamps", "0.9.6"   # Automatically populate created_at, created_on, etc. when those properties are present.
+	dependency "dm-types", "0.9.6"        # Provides additional types, including csv, json, yaml.
+	dependency "dm-validations", "0.9.6"  # Validation framework
 </code></pre>
+
+Note: Depending on the date and time you're generating the application, it might have the wrong version number(s) for the datamapper dependencies. 
+In my case I already have 0.9.7 and needed to update it.
+
 
 In order to define the connection to the database we have two options
 
 # established the database connection in the environment files
 # define the database connection parameters in a separate configuration file
 
-We will use the old fashion method and use the @config/database.yml@ file. Create the file and define the connection parameters (adjust to your environment as needed):
+We will use the old fashion method and use the @config/database.yml@ file. 
+Update the file and define the connection parameters (adjust to your environment as needed):
 
 <pre><code>
 	---
@@ -88,7 +89,7 @@ We will use the old fashion method and use the @config/database.yml@ file. Creat
 Refer to your database manual on create the database.
 
 Since we use thread-safe DataMapper as our ORM, mutex can be off, which it should be. 
-Check the @Merb.config@ in the @init.rb@ file:
+Check the @Merb.config@ in the @config/init.rb@ file:
 
 <pre><code>
 	Merb::Config.use do |c|
@@ -99,6 +100,15 @@ Check the @Merb.config@ in the @init.rb@ file:
 	end
 </code></pre>
 
+Since we're looking at the @config/init.rb@, lets change our template engine to HAML:
+
+<pre><code>
+	...
+	use_template_engine :haml
+	...
+</code></pre>
+
+
 That's it for setup. We have an application that has no models, no controllers, and no views. In sort: that does nothing!
 
 
@@ -108,17 +118,15 @@ h4. Add dependencies
 
 Next we add the user model and the proper authentication.
 
-First, let's add the MerbAuth gems to @config/init.rb@:
+Since we're very appreciative to merb for the things it does for us, we remember that
+it already added the necessary dependency to merb-auth in @config/dependencies.rb@:
 
 <pre><code>
-	# merb-more dependencies
 	...
-	dependency "merb-auth-core"
-	dependency "merb-auth-more"
-	dependency "merb-auth-slice-password"
+	dependency "merb-auth", "0.9.9"          # An authentication slice (Merb's equivalent to Rails' restful authentication)
+	...
 </code></pre>
 
-We put it under the merb-more section, since that's where the gems are maintained since version 1.0.
 Now if we run @rake -T slices:merb-auth-slice-password@ we see all kinds of goodies:
 
 <pre><code>
@@ -173,12 +181,9 @@ and the recipe resource
 Now we need to add the necessary properties and associations to the cook (user) model
 
 <pre><code>
-	require 'merb-auth-more/mixins/salted_user'
-	
 	class Cook
 
 	  include DataMapper::Resource
-	  include Merb::Authentication::Mixins::SaltedUser
 
 	  # Attributes
 	  property :id,               Serial
@@ -197,6 +202,30 @@ Now we need to add the necessary properties and associations to the cook (user) 
 	  validates_format    :email, :as => :email_address
 
 	end
+</code></pre>
+
+Now we need to setup and configure merb-auth to do it's magic. All configuration is done in @merb/merb-auth@.
+
+First look at @merb/merb-auth/setup.rb@. Here we tell merb-auth to use our @Cook@ class as the user model:
+
+<pre><code>
+	...
+	Merb::Authentication.user_class = Cook
+	...
+</code></pre>
+
+If we don't do that, MerbAuth assumes our user class is @User@ and creates a @users@ table. 
+It also allows us to change the login and password field, e.g. to email, but for now we stick with the defaults.
+
+Further down in the file you'll see that it mixes the @Merb::Authentication::Mixins::SaltedUser@ into our
+user model:
+
+<pre><code>
+	...
+  # Mixin the salted user mixin
+  require 'merb-auth-more/mixins/salted_user'
+  Merb::Authentication.user_class.class_eval{ include Merb::Authentication::Mixins::SaltedUser }
+	...
 </code></pre>
 
 Mixing in the <code>Merb::Authentication::Mixins::SaltedUser</code> module does a couple of things:
@@ -218,21 +247,21 @@ Mixing in the <code>Merb::Authentication::Mixins::SaltedUser</code> module does 
 
 As usual, we're more then welcome to override the methods if we desire.
 
-The astute reader also noticed that we set user class explicit. If we don't do that, MerbAuth assumes
-our user class is @User@ and creates a @users@ table.
-
-We also need to define our authentication strategies in @lib/authentication/setup.rb@ and make sure
-merb-auth uses our @Cook@ model as the user class. For now we use standard password forms and OpenID:
+In the other file, @merb/merb-auth/setup.rb@, allows us to define our authentication strategies.
+We'll add support for OpenID:
 
 <pre><code>
 	# ...
-	Merb::Authentication.user_class = Cook
+	Merb::Slices::config[:"merb-auth-slice-password"][:no_default_strategies] = true
 
 	Merb::Authentication.activate!(:default_password_form)
+	Merb::Authentication.activate!(:default_basic_auth)
 	Merb::Authentication.activate!(:default_openid)
 </code></pre>
 
-And finally the recipe model
+Note: There is also a lib/authentication folder with configuration files, but I believe that's left over.
+
+Now fill in the recipe model
 
 <pre><code>
 	class Recipe
@@ -259,8 +288,6 @@ Now that we have our models defined, we can run our migrations
 <pre><code>
 	$ rake db:automigrate
 </code></pre>
-
-TODO: Somehow it still creates the @users@ table, even through the user class is set to @Cook@ (checked in interactive Merb).
 
 Next we need to hook up our recipe resource in the router:
 
@@ -295,7 +322,7 @@ Now that we can enter, view and edit out recipes, we want to protect them.
 
 To do that we need to do a couple of things.
 
-First, lets hook up the merb_auth routes
+First, lets hook up the merb_auth routes and remove the default routes:
 
 <pre><code>
 	Merb.logger.info("Compiling routes...")
@@ -307,13 +334,13 @@ First, lets hook up the merb_auth routes
 	  slice(:merb_auth_slice_password, :name_prefix => nil, :path_prefix => "") do
 	    match("/openid").to(:controller => "sessions", :action => "update").name(:openid)
 	  end
-
-	  # Change this for your home page to be available at /
+	
 	  match('/').to(:controller => 'recipes', :action =>'index')
 	end
 </code></pre>
 
-and add before filter to the recipes controller:
+Now we want to protect the recipes. We have two options. 
+We can either protect the controller actions by adding a before filter to the recipes controller:
 
 <pre><code>
 	class Recipes < Application
@@ -323,6 +350,22 @@ and add before filter to the recipes controller:
 		...
 	end
 </code></pre>
+
+Or we can protect the route: 
+
+<pre><code>
+	Merb.logger.info("Compiling routes...")
+	Merb::Router.prepare do
+	  # RESTful routes
+		protect do
+	  	resources :recipes
+		end
+		...
+	end
+</code></pre>
+
+Which solution to choose depends on the desired control we want. For now we protect the route, 
+which provides the benefit not even hitting any controller for unauthorized access.
 
 As a quick and dirty test, we can create a new user via the interactive Merb shell:
 
@@ -350,7 +393,7 @@ Note: I added a link in the header to logout from the application.
 h4. Protect Recipes
 
 Right now we allow any recipe to be viewed as long as the the user can login. 
-Ideally we want to protect out secret potato soup recipe from other cooks in the system.
+Ideally we want to protect out valuable family potato soup recipe from other cooks in the system.
 To do that we need to modify the recipe controller. 
 But first, let us add another cook to the system via the command line
 
@@ -402,8 +445,6 @@ First we change the <code>index</code> action in the recipes controller to only 
 
 	  # provides :xml, :yaml, :js
 
-	  before :ensure_authenticated
-
 		def index
 		  @recipes = session.user.recipes
 		  display @recipes
@@ -427,8 +468,44 @@ To avoid that simply modify the <code>show</code> action:
 	end
 </code></pre>
 
-And while we're touching the controller, we switch to action arguments (merb-more/merb-action-args).
-We need to adjust the <code>edit</code>, <code>update</code>, and <code>destroy</code> actions in a similar fashion.
+We need to adjust the <code>edit</code>, <code>update</code>, and <code>destroy</code> actions in a similar fashion:
+
+<pre><code>
+	class Recipes < Application
+		...
+
+	  def edit(id)
+	    only_provides :html
+	    @recipe = Recipe.get(id)
+	    raise NotFound unless @recipe
+	    display @recipe
+	  end
+
+		...
+		
+	  def update(recipe)
+	    @recipe = session.user.recipes.get(id)
+	    raise NotFound unless @recipe
+	    if @recipe.update_attributes(recipe)
+	       redirect resource(@recipe)
+	    else
+	      display @recipe, :edit
+	    end
+	  end
+
+	  def destroy(id)
+	    @recipe = session.user.recipes.get(id)
+	    raise NotFound unless @recipe
+	    if @recipe.destroy
+	      redirect resource(@recipes)
+	    else
+	      raise InternalServerError
+	    end
+	  end
+		...
+	end
+</code></pre>
+
 
 That leaves the <code>new</code> and <code>create</code> actions. 
 For the <code>new</code> action we simply add the user from the session:
@@ -453,7 +530,7 @@ For the <code>create</code> action we use the <code>build</code> method on the <
 	  def create(recipe)
 	    @recipe = session.user.recipes.build(recipe)
 	    if @recipe.save
-	      redirect url(:recipe, @recipe)
+	      redirect resource(@recipe), :message => {:notice => "Recipe was successfully created"}
 	    else
 	      render :new
 	    end
@@ -582,6 +659,67 @@ and re-run the specs.
 
 	5 examples, 0 failures, 1 pending
 </code></pre>
+
+
+h4. Regression Tests
+
+Now, lets turn our attention to regression testing. If you watched Yehuda Katz, aka wycats, 
+Testing Merb applications presentation at MerbCamp 1.0, you will feel right at home.
+If you did not, stop here and take a look for the motivation of the tests.
+
+Watched it, good! Replace the content of @spec/requests/recipes_spec.rb@ with
+
+<pre><code>
+	require File.join(File.dirname(__FILE__), '..', 'spec_helper.rb')
+
+	given "the cook is authenticated" do
+	  request(url(:perform_login), :method => "PUT", :params => { :login => "joe", :password => "secret" })
+	end
+
+	describe "resource(:recipes)" do
+
+	  before(:all) do
+	    DataMapper.setup(:default, "sqlite3::memory:")
+	    DataMapper.auto_migrate!
+
+	    Cook.new(:login => 'joe', :email => 'joe@example.com', :password => 'secret', :password_confirmation => 'secret').save
+	  end
+
+	  after(:each) do
+	    Cook.all.destroy!
+	    Recipe.all.destroy!
+	  end
+
+	  describe "GET" do
+
+	    before(:each) do
+	      @response = request(resource(:recipes))
+	    end
+
+	    it "should return 'HTTP Error 401 - Unauthorized' status" do
+	      @response.status == 401
+	    end
+
+	  end
+
+	  describe "GET (authenticatd)", :given => "the cook is authenticated" do
+
+	    before(:each) do
+	      @response = request(resource(:recipes))
+	    end
+
+	    it "should return successfully" do
+	      @response.status == 200
+	    end
+
+	  end
+	end
+</code></pre>
+
+Since we're using authenication, we added a given block, to automatically login, when needed.
+
+Consider this the start of the regression test and feel free add more tests.
+
 
 h2. Appendix
 
