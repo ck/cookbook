@@ -28,7 +28,7 @@
 Merb.logger.info("Compiling routes...")
 Merb::Router.prepare do
   # RESTful routes
-  protect do
+  authenticate do
     resources :recipes
   end
 
