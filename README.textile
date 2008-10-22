@@ -357,7 +357,7 @@ Or we can protect the route:
 	Merb.logger.info("Compiling routes...")
 	Merb::Router.prepare do
 	  # RESTful routes
-		protect do
+		authenticate do
 	  	resources :recipes
 		end
 		...
@@ -719,6 +719,240 @@ Watched it, good! Replace the content of @spec/requests/recipes_spec.rb@ with
 Since we're using authenication, we added a given block, to automatically login, when needed.
 
 Consider this the start of the regression test and feel free add more tests.
+
+h3. Add Activation
+
+Until now they only way for a cook to signup and store his valuable recipes on our site, is to
+contact us and request a login. That can be very time consuming and we rather spend our time 
+on fun stuff.
+
+So, lets add automated signup and activation (with validation) to our application.
+
+
+h4. Add dependencies
+
+Right now @merb-auth-slice-activation@ is not part of @merb/merb-more/merb-auth@ and needs
+to be installed separately :
+
+<pre><code>
+	$ git clone git://github.com/ck/merb.git
+	$ cd merb/merb-more/merb-auth/merb-auth-slice-activation
+	$ sudo rake install
+</code></pre>
+
+and then required explicitly
+
+<pre><code>
+	...
+	dependency "merb-auth-slice-activation", "0.9.10"
+	...
+</code></pre>
+
+Note: There is still discussion where the slice should live, as part of merb-more, as part of merb-plugins, or completely standalone. Stay tuned! 
+
+Now if we run @rake -T slices:merb-auth-slice-activation@ we see all kinds of goodies:
+
+<pre><code>
+	rake slices:merb-auth-slice-activation:copy_assets          # Copy public assets to host application
+	rake slices:merb-auth-slice-activation:freeze               # Freeze MerbAuthSliceActivation into your app (only merb-auth-slice-activation/app)
+	rake slices:merb-auth-slice-activation:freeze:app           # Freezes MerbAuthSliceActivation by copying all files from merb-auth-slice-activat...
+	rake slices:merb-auth-slice-activation:freeze:app_with_gem  # Freezes MerbAuthSliceActivation as a gem and copies over merb-auth-slice-activati...
+	rake slices:merb-auth-slice-activation:freeze:gem           # Freezes MerbAuthSliceActivation by installing the gem into application/gems
+	rake slices:merb-auth-slice-activation:freeze:mailers       # Freeze all mailers into your application for easy modification
+	rake slices:merb-auth-slice-activation:freeze:models        # Freeze all models into your application for easy modification
+	rake slices:merb-auth-slice-activation:freeze:unpack        # Freezes MerbAuthSliceActivation by unpacking all files into your application
+	rake slices:merb-auth-slice-activation:freeze:views         # Freeze all views into your application for easy modification
+	rake slices:merb-auth-slice-activation:install              # Install MerbAuthSliceActivation
+	rake slices:merb-auth-slice-activation:migrate              # Migrate the database
+	rake slices:merb-auth-slice-activation:patch                # Copy stub files and views to host application
+	rake slices:merb-auth-slice-activation:preflight            # Test for any dependencies
+	rake slices:merb-auth-slice-activation:setup_directories    # Setup directories
+	rake slices:merb-auth-slice-activation:stubs                # Copy stub files to host application</code></pre>
+
+Again, to use it we run:
+
+<pre><code>
+	$ rake slices:merb-auth-slice-activation:install
+</code></pre>
+
+Since we want to manipulate the the view, we need to freeze them
+
+<pre><code>
+	$ rake slices:merb-auth-slice-activation:freeze:views
+</code></pre>
+
+and the mailers
+
+<pre><code>
+	$ rake slices:merb-auth-slice-activation:freeze:mailers
+	$ rake slices:merb-auth-slice-activation:stubs
+</code></pre>
+
+
+h4. Model Changes
+
+Next we tell the @Cook@ class, our user model, to support activation
+
+<pre><code>
+	class Cook
+	  include DataMapper::Resource
+	  include Merb::Authentication::Mixins::ActivatedUser
+
+	  # Attributes
+		...
+	end
+</code></pre>
+
+That was easy, but what happens behind the scenes? 
+The @Merb::Authentication::Mixins::ActivatedUser@ mixin does two things. First it adds
+two attributes to the model:
+
+* @:activation_code@ (@String@), for the (random) code required for a user to become active. The code will be cleared out when the user is activated.
+* @:activated_at@ (@DateTime@), for the date and time the user was activated. If the value is null, the user is not active and therefore not properly authenticated.
+
+Lets verify that by migrating our database
+
+<pre><code>
+	$ rake db:automigrate
+</code></pre>
+
+and checking the fields in the database.
+
+<pre><code>
+	$ mysql -u cb_user -psecret cookbook_development
+	
+	mysql> describe cooks;
+	+------------------+-------------+------+-----+---------+----------------+
+	| Field            | Type        | Null | Key | Default | Extra          |
+	+------------------+-------------+------+-----+---------+----------------+
+	| activated_at     | datetime    | YES  |     | NULL    |                | 
+	| activation_code  | varchar(50) | YES  |     | NULL    |                | 
+	| id               | int(11)     | NO   | PRI | NULL    | auto_increment | 
+	| login            | varchar(50) | YES  |     | NULL    |                | 
+	| email            | varchar(50) | YES  |     | NULL    |                | 
+	| identity_url     | varchar(50) | YES  |     | NULL    |                | 
+	| created_at       | datetime    | YES  |     | NULL    |                | 
+	| updated_at       | datetime    | YES  |     | NULL    |                | 
+	| crypted_password | varchar(50) | YES  |     | NULL    |                | 
+	| salt             | varchar(50) | YES  |     | NULL    |                | 
+	+------------------+-------------+------+-----+---------+----------------+
+	10 rows in set (0.00 sec)</code></pre>
+</code></pre>
+
+Secondly, it adds the following class method
+
+* @make_key@, generates a random key using SHA1
+
+and the following instance methods 
+
+* @activate@, which activates (and saves) the user.
+* @activated?@ / @active?@, returns @true@ if the user is active, otherwise @false@
+* @recently_activated?@, returns @true@ if the user has been activated during the current 'request'
+* @make_activation_code@, creates (using @class.make_key@) and sets the activation code for the user
+
+to the user model. As with the @SaltedUser@, we’re more then welcome to override the methods.
+
+
+h4. Configure Activation
+
+Before activation will work, it requires some information from us.
+First lets hook up the slice routes in @config/router.rb@:
+
+<pre><code>
+	Merb.logger.info("Compiling routes...")
+	Merb::Router.prepare do
+	
+		...
+
+	  # Adds the required routes for merb-auth using the activation slice
+	  slice(:merb_auth_slice_activation, :name_prefix => nil, :path_prefix => "")
+
+	  match('/').to(:controller => 'recipes', :action =>'index')
+	end
+</code></pre>
+                                    
+Then we need to specify the following two required slice settings:
+
+* @:from_email@, the email account to send the email from
+* @:activation_host@, the host to go to for activation.  This is used to construct the activation link. Symbol, String or Procs are available. Procs will have the @user@ object passed in.
+
+We add them in the the @config/init.rb@:
+
+<pre><code>
+	...
+	
+	Merb::BootLoader.after_app_loads do
+	  # MerbAuth Slice Activation config
+	  Merb::Slices::config[:merb_auth_slice_activation][:from_email]      = 'cook@cookingwithmerb.com'
+	  Merb::Slices::config[:merb_auth_slice_activation][:activation_host] = 'localhost:4000'
+	end
+</code></pre>
+
+In the same block we also need to add the merb mailer configuration we want to use. 
+Otherwise the system won't know by what means to delivery the emails. 
+We'll use sendmail:
+
+<pre><code>
+	...
+	
+	Merb::BootLoader.after_app_loads do
+		Merb::Mailer.config = {:sendmail_path => '/usr/sbin/sendmail'}
+		Merb::Mailer.delivery_method = :sendmail
+		
+	  # MerbAuth Slice Activation config
+	  Merb::Slices::config[:merb_auth_slice_activation][:from_email]      = 'cook@example.com'
+	  Merb::Slices::config[:merb_auth_slice_activation][:activation_host] = 'localhost:4000'
+	end
+</code></pre>
+
+Adjust your sendmail path to match your system (to determine where sendmail is located on your machine, execute @which sendmail@).
+
+Note: For other mailer configuration options, like SMTP or Gmail SMTP, see "MerbMailer README":http://github.com/wycats/merb/tree/master/merb-mailer/README.textile .
+
+Ok, we're done. Lets test our activation logic. Fire up interactive merb and add a user:
+
+<pre><code>
+	~/Projects/ck/cookbook(activation) $ merb -i
+	Loading init file from /Users/ck/Projects/ck/cookbook/config/init.rb
+	Loading /Users/ck/Projects/ck/cookbook/config/environments/development.rb
+	 ~ Connecting to database...
+	 ~ Loaded slice 'MerbAuthSliceActivation' ...
+	 ~ Loaded slice 'MerbAuthSlicePassword' ...
+	 ~ Parent pid: 13491
+	 ~ Compiling routes...
+	 ~ Activating slice 'MerbAuthSliceActivation' ...
+	 ~ Activating slice 'MerbAuthSlicePassword' ...
+	irb(main):001:0>  joe = Cook.new(:login => 'joe', :email => 'joethecook@thisisnotmyrealemail.com', :password => 'secret', :password_confirmation => 'secret')
+	=> #<Cook activated_at=nil activation_code=nil id=nil login="joe" email="joethecook@thisisnotmyrealemail.com" identity_url=nil created_at=nil updated_at=nil crypted_password=nil salt=nil>
+	irb(main):002:0> joe.save
+	 ~ SELECT `id` FROM `cooks` WHERE (`login` = 'joe') ORDER BY `id` LIMIT 1
+	 ~ SELECT `id` FROM `cooks` WHERE (`email` = 'joethecook@thisisnotmyrealemail.com') ORDER BY `id` LIMIT 1
+	 ~ INSERT INTO `cooks` (`email`, `created_at`, `salt`, `login`, `activation_code`, `crypted_password`, `updated_at`) VALUES ('joethecook@thisisnotmyrealemail.com', '2008-10-22 08:02:17', '7de6ed3df0175d8a0d22ff7b3148bbdd99d801bb', 'joe', '6345866ba898ef52f5a121f865490a26395b1c16', '37a88b4dd8e07937127f2c5f525ab62a4f590cde', '2008-10-22 08:02:17')
+	 ~ Sending Signup to joethecook@thisisnotmyrealemail.com with code 6345866ba898ef52f5a121f865490a26395b1c16
+	 ~ signup sent to joethecook@thisisnotmyrealemail.com about =?utf-8?Q?Please_Activate_Your_Account?=
+	=> true
+</code></pre>
+
+When we check our email, we see:
+
+<pre><code>
+	From:	cook@cookingwithmerb.com
+	Subject:	Please Activate Your Account
+	Charset:	UTF-8
+
+	Your account has been created.
+
+	Username: joe
+
+	Visit this url to activate your account:
+
+	http://localhost:4000/6345866ba898ef52f5a121f865490a26395b1c16
+</code></pre>
+
+The user is now prepped and just needs to verify his identity, i.e. email address, to become active.
+
+Starting merb, press the link in the email, and voila Joe is active!
+
 
 h2. Appendix
 

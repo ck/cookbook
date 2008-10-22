@@ -1,5 +1,6 @@
 class Cook
   include DataMapper::Resource
+  include Merb::Authentication::Mixins::ActivatedUser
   
   # Attributes
   property :id,               Serial

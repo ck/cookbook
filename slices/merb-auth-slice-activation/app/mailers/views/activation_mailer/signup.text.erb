@@ -1,0 +1,7 @@
+Your account has been created.
+
+  Username: <%=  @user.send(Merb::Authentication::Strategies::Basic::Base.login_param.to_sym) %>
+
+Visit this url to activate your account:
+
+  <%= activation_url(@user) %>

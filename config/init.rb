@@ -20,5 +20,10 @@ Merb::BootLoader.before_app_loads do
 end
  
 Merb::BootLoader.after_app_loads do
+  Merb::Mailer.config = {:sendmail_path => '/usr/sbin/sendmail'}
+  Merb::Mailer.delivery_method = :sendmail
+  
   # This will get executed after your app's classes have been loaded.
+  Merb::Slices::config[:merb_auth_slice_activation][:from_email]      = 'cook@cookingwithmerb.com'
+  Merb::Slices::config[:merb_auth_slice_activation][:activation_host] = 'localhost:4000'
 end
