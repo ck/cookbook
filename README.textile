@@ -360,7 +360,12 @@ Or we can protect the route:
 		authenticate do
 	  	resources :recipes
 		end
+		
 		...
+		
+		authenticate do
+	    match('/').to(:controller => 'recipes', :action =>'index')
+	  end
 	end
 </code></pre>
 
@@ -952,6 +957,10 @@ When we check our email, we see:
 The user is now prepped and just needs to verify his identity, i.e. email address, to become active.
 
 Starting merb, press the link in the email, and voila Joe is active!
+
+h4. Testing
+
+Update config to not send email!
 
 
 h2. Appendix

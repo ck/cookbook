@@ -40,5 +40,7 @@ Merb::Router.prepare do
   # Adds the required routes for merb-auth using the activation slice
   slice(:merb_auth_slice_activation, :name_prefix => nil, :path_prefix => "")
 
-  match('/').to(:controller => 'recipes', :action =>'index')
+  authenticate do
+    match('/').to(:controller => 'recipes', :action =>'index')
+  end
 end
