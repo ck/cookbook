@@ -740,8 +740,8 @@ Right now @merb-auth-slice-activation@ is not part of @merb/merb-more/merb-auth@
 to be installed separately :
 
 <pre><code>
-	$ git clone git://github.com/ck/merb.git
-	$ cd merb/merb-more/merb-auth/merb-auth-slice-activation
+	$ git clone git://github.com/ck/merb-auth-slice-activation.git
+	$ cd merb-auth-slice-activation
 	$ sudo rake install
 </code></pre>
 
@@ -957,11 +957,6 @@ When we check our email, we see:
 The user is now prepped and just needs to verify his identity, i.e. email address, to become active.
 
 Starting merb, press the link in the email, and voila Joe is active!
-
-h4. Testing
-
-Update config to not send email!
-
 
 h2. Appendix
 
