@@ -24,6 +24,8 @@ Merb::BootLoader.after_app_loads do
   Merb::Mailer.delivery_method = :sendmail
   
   # This will get executed after your app's classes have been loaded.
-  Merb::Slices::config[:merb_auth_slice_activation][:from_email]      = 'cook@cookingwithmerb.com'
-  Merb::Slices::config[:merb_auth_slice_activation][:activation_host] = 'localhost:4000'
+  Merb::Slices::config[:merb_auth_slice_activation][:from_email]         = 'cook@cookingwithmerb.com'
+  Merb::Slices::config[:merb_auth_slice_activation][:activation_host]    = 'localhost:4000'
+  Merb::Slices::config[:merb_auth_slice_activation][:welcome_subject]    = 'Welcome to Cookbook.com'
+  Merb::Slices::config[:merb_auth_slice_activation][:activation_subject] = 'Cookbook.com activation requested'
 end

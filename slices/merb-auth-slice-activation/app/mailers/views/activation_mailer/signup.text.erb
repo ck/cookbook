@@ -1,7 +1,11 @@
 Your account has been created.
 
-  Username: <%=  @user.send(Merb::Authentication::Strategies::Basic::Base.login_param.to_sym) %>
+  Username: <%=  @user.login %>
 
-Visit this url to activate your account:
+All that is left, is to activate your account by simply visiting:
 
   <%= activation_url(@user) %>
+
+Sincerely,
+
+   Your Cookbook Team!

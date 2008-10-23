@@ -958,6 +958,69 @@ The user is now prepped and just needs to verify his identity, i.e. email addres
 
 Starting merb, press the link in the email, and voila Joe is active!
 
+h4. Customize Activation
+
+Next we want to customize activation even more to make any new cook feel right at home and entice them to
+tell their friends and colleagues about our great site.
+
+Lets start with the email subject lines. There are two email notifications that are part of the activation process:
+
+# the signup notification
+# the welcome notification
+
+By default they use "Please Activate Your Account" and "Welcome" as their respective email subject lines.
+To change this to more site specific simply add the following lines to @config/init.rb@:
+
+<pre><code>
+	...
+	
+	Merb::BootLoader.after_app_loads do
+	
+		...
+	  Merb::Slices::config[:merb_auth_slice_activation][:welcome_subject]    = 'Welcome to Cookbook.com'
+	  Merb::Slices::config[:merb_auth_slice_activation][:activation_subject] = 'Cookbook.com activation requested'
+	end
+</code></pre>
+
+Now, that we took care of the email subject, we turn our attention to the email bodies.
+During setup we executed @rake slices:merb-auth-slice-activation:stubs@, which copied the two default
+email templates 
+
+# activation.text.erb
+# signup.text.erb
+
+to the @slice/merb-auth-slice-activation/mailers/views/activation_mailer@ folder.
+All we need to do now is modify them to our liking. 
+
+We change @signup.text.erb@ to
+
+<pre><code>
+	Your account has been created.
+
+	  Username: <%=  @user.login %>
+
+	All that is left, is to activate your account by simply visiting:
+
+	  <%= activation_url(@user) %>
+	
+	Sincerely,
+
+	   Your Cookbook Team!
+</code></pre>
+
+and @activation.text.erb@ to
+
+<pre><code>
+	Congratulation, you have been authenticated with the following email: <%= @user.email %>.
+ 
+	You can now manage all your favorite recipes securely online without the fear of every loosing them.
+
+	Sincerely,
+	
+	   Your Cookbook Team!
+</code></pre>
+
+
 h2. Appendix
 
 h3. Running Specs
